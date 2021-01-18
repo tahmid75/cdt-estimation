@@ -18,6 +18,6 @@ class Registry
     // This if I want to keep historic data
     //std::map<int, std::map<int, std::vector<std::tuple<int, double, int>>>> msgRegistry;
 
-    std::map<int, std::map<int, std::tuple<int, double, int>>> msgRegistry;
+    std::map<int, std::map<int, std::tuple<int, double, int, int>>> msgRegistry;
 
 };

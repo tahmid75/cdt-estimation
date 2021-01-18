@@ -71,38 +71,65 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
                 int hopCount = wsm->getHopCountRLDCO();
                 double dwellDistance = wsm->getDwellDistance();
                 int dwellTime = wsm->getDwellTime();
-
-                //edge.msgRegistry[myId].insert(edge.msgRegistry[myId].begin(), {vehicleID, messageTime});
-                std::tuple<int, double, int> vehicleData (messageTime, dwellDistance, dwellTime );
-
-                // If I want to keep historic data. Using a vector
-                //edge.msgRegistry[myId][vehicleID].insert(edge.msgRegistry[myId][vehicleID].begin(), vehicleData);
-
-                edge.msgRegistry[myId][vehicleID] = vehicleData;
+                int timeToReach = wsm->getTimeToReach();
+                int dwellStart = messageTime + timeToReach;
+                int dwellEnd = dwellStart + dwellTime;
 
 
                 // if vehicle is out of range
                 if(distance(vehicleCoord, rsuCoord) > 800){
 
+
+                    //edge.msgRegistry[myId].insert(edge.msgRegistry[myId].begin(), {vehicleID, messageTime});
+                    std::tuple<int, double, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd );
+
+                    // If I want to keep historic data. Using a vector
+                    //edge.msgRegistry[myId][vehicleID].insert(edge.msgRegistry[myId][vehicleID].begin(), vehicleData);
+
+                    edge.msgRegistry[myId][vehicleID] = vehicleData;
+
                     std::cout << "RSU Received this WSM Message from a vehicle out of range." << endl;
-                    std::cout << "Last Known Time: " << lastKnown << endl;
+                    //std::cout << "Last Known Time: " << lastKnown << endl;
                     //std::cout << "RSU Position: " << rsuCoord << endl ;
                     //std::cout << "RSU ID: " << myId << endl;
                     //std::cout << "Message Target ID: " << wsm->getTargetAddress() << endl;
                     //std::cout << "Sender Type: " << wsm->getSenderType()  << endl;
-                    std::cout << "New Message Time: " <<  messageTime << endl;
-                    std::cout << "Sender Address: " << vehicleID  << endl;
+                    std::cout << "New Message Time (SimTime): " <<  messageTime << endl;
+                    std::cout << "Time to Reach: " << timeToReach << endl;
+                    std::cout << "Dwell Time: " << dwellTime << endl ;
+                    std::cout << "Dwell Start " << dwellStart << endl;
+                    std::cout << "Dwell End: " << dwellEnd << endl;
+                    //std::cout << "Dwell Distance: " << dwellDistance << endl ;
+                    std::cout << "Vehicle ID: " << vehicleID  << endl;
                     //std::cout << "Inserted: " << get<0>(edge.msgRegistry[myId][vehicleID]) << endl;
                     //std::cout << "Current Speed: " << vehicleSpeed << endl;
-                    std::cout << "Average Speed: " << wsm->getAverageSpeed() << endl;
+                    //std::cout << "Average Speed: " << wsm->getAverageSpeed() << endl;
                     //std::cout << "Velocity : " << wsm->getSenderVelocity() << endl;
                     //std::cout << "Sender Position: " << wsm->getEntryCoord() << endl;
                     //std::cout << "Entry Co-ordinate: " << wsm->getEntryCoord() << endl;
                    // std::cout << "Exit Coordinate: " << wsm->getExitCoord() << endl;
-                    std::cout << "Dwel Distance: " << dwellDistance << endl ;
-                    std::cout << "Dwell Time: " << dwellTime << endl ;
                     //std::cout << "Hop Count: " << hopCount << endl;
                     //std::cout << "Distance from Vehicle: " << distance(vehicleCoord, rsuCoord) << endl;
+
+
+                    /*
+                    for (auto const& rsu : edge.msgRegistry)
+                    {
+                        if(rsu.first == myId){
+
+                            for (auto const& vehicle : rsu.second){
+                                std::cout << "....." << endl;
+                                std::cout<< "Vehicle ID: " <<  vehicle.first << endl ;
+                                std::cout << "Entry Time: " << get<2>(vehicle.second) << endl ;
+                                std::cout << "Exit Time: " << get<3>(vehicle.second) << endl ;
+
+                            }
+
+                        }
+
+                    }
+                    */
+
 
                     std::cout  << "----------------------------" << endl;
 
@@ -149,7 +176,6 @@ void TraCIDemoRSU11p::initialize(int stage) {
     if (stage == 0) {
         //std::cout << stage;
         //Initializing members and pointers of your application goes here
-
         //request_event = new cMessage("request_interval"); // request_resources is the message type
         //request_tolerance_event = new cMessage("request_tolerance"); // request_tollerance is the message type to finish the request process.
 
@@ -160,10 +186,13 @@ void TraCIDemoRSU11p::initialize(int stage) {
 
         stage++;
 
+        request_event = new cMessage("request_event");
+        scheduleAt(simTime() + 30, request_event);
+
     }
 
-    //const int * type_i = vru_type_i;
-    //std::cout << type_i[0];
+
+
 }
 
 //New Changes
@@ -210,11 +239,58 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     }
 
+
+    else if(msg== request_event){
+
+        double appStart = simTime().dbl() + 35 ;
+
+
+        std::cout << "Application request at simtime : " << simTime() << ". At RSU: " << myId << endl ;
+
+        std::cout << "New application will start at: " << simTime() + 35 << ". Calculate feasibility now. " << endl ;
+
+
+        int vehicleCount = 0;
+
+        for (auto const& rsu : edge.msgRegistry)
+        {
+            if(rsu.first == myId){
+                std::cout << "RSU record: " << rsu.first << std::endl ;
+
+                for (auto const& vehicle : rsu.second){
+                    if(appStart >= get<2>(vehicle.second) && appStart <= get<3>(vehicle.second) ){
+                        //std::cout << "Vehicle will be in range. " << endl;
+                        //std::cout<< "Vehicle ID: " <<  vehicle.first << endl ;
+                        //std::cout << "Entry Time: " << get<2>(vehicle.second) << endl ;
+                        //std::cout << "Exit Time: " << get<3>(vehicle.second) << endl ;
+                        vehicleCount++;
+                    }
+
+                }
+
+            }
+
+        }
+
+        std::cout << "Vehicles available at the time of start: " << vehicleCount << endl ;
+        std::cout << "--------------------------" << endl ;
+
+
+        scheduleAt(simTime() + 20, request_event);
+    }
+
 }
 
 
 void TraCIDemoRSU11p:: onBSM(DemoSafetyMessage* bsm)
 {
+
+
+
+
+
+
+
 
 }
 
