@@ -194,6 +194,7 @@ TraCIDemo11pMessage::TraCIDemo11pMessage(const char *name, short kind) : ::veins
     this->TimeToReach = 0;
     this->DwellTime = 0;
     this->DwellDistance = 0;
+    this->InRange = false;
 }
 
 TraCIDemo11pMessage::TraCIDemo11pMessage(const TraCIDemo11pMessage& other) : ::veins::BaseFrame1609_4(other)
@@ -230,6 +231,7 @@ void TraCIDemo11pMessage::copy(const TraCIDemo11pMessage& other)
     this->TimeToReach = other.TimeToReach;
     this->DwellTime = other.DwellTime;
     this->DwellDistance = other.DwellDistance;
+    this->InRange = other.InRange;
 }
 
 void TraCIDemo11pMessage::parsimPack(omnetpp::cCommBuffer *b) const
@@ -250,6 +252,7 @@ void TraCIDemo11pMessage::parsimPack(omnetpp::cCommBuffer *b) const
     doParsimPacking(b,this->TimeToReach);
     doParsimPacking(b,this->DwellTime);
     doParsimPacking(b,this->DwellDistance);
+    doParsimPacking(b,this->InRange);
 }
 
 void TraCIDemo11pMessage::parsimUnpack(omnetpp::cCommBuffer *b)
@@ -270,6 +273,7 @@ void TraCIDemo11pMessage::parsimUnpack(omnetpp::cCommBuffer *b)
     doParsimUnpacking(b,this->TimeToReach);
     doParsimUnpacking(b,this->DwellTime);
     doParsimUnpacking(b,this->DwellDistance);
+    doParsimUnpacking(b,this->InRange);
 }
 
 LAddress::L2Type& TraCIDemo11pMessage::getSenderAddress()
@@ -422,6 +426,16 @@ void TraCIDemo11pMessage::setDwellDistance(double DwellDistance)
     this->DwellDistance = DwellDistance;
 }
 
+bool TraCIDemo11pMessage::getInRange() const
+{
+    return this->InRange;
+}
+
+void TraCIDemo11pMessage::setInRange(bool InRange)
+{
+    this->InRange = InRange;
+}
+
 class TraCIDemo11pMessageDescriptor : public omnetpp::cClassDescriptor
 {
   private:
@@ -487,7 +501,7 @@ const char *TraCIDemo11pMessageDescriptor::getProperty(const char *propertyname)
 int TraCIDemo11pMessageDescriptor::getFieldCount() const
 {
     omnetpp::cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 15+basedesc->getFieldCount() : 15;
+    return basedesc ? 16+basedesc->getFieldCount() : 16;
 }
 
 unsigned int TraCIDemo11pMessageDescriptor::getFieldTypeFlags(int field) const
@@ -514,8 +528,9 @@ unsigned int TraCIDemo11pMessageDescriptor::getFieldTypeFlags(int field) const
         FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
+        FD_ISEDITABLE,
     };
-    return (field>=0 && field<15) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<16) ? fieldTypeFlags[field] : 0;
 }
 
 const char *TraCIDemo11pMessageDescriptor::getFieldName(int field) const
@@ -542,8 +557,9 @@ const char *TraCIDemo11pMessageDescriptor::getFieldName(int field) const
         "TimeToReach",
         "DwellTime",
         "DwellDistance",
+        "InRange",
     };
-    return (field>=0 && field<15) ? fieldNames[field] : nullptr;
+    return (field>=0 && field<16) ? fieldNames[field] : nullptr;
 }
 
 int TraCIDemo11pMessageDescriptor::findField(const char *fieldName) const
@@ -565,6 +581,7 @@ int TraCIDemo11pMessageDescriptor::findField(const char *fieldName) const
     if (fieldName[0]=='T' && strcmp(fieldName, "TimeToReach")==0) return base+12;
     if (fieldName[0]=='D' && strcmp(fieldName, "DwellTime")==0) return base+13;
     if (fieldName[0]=='D' && strcmp(fieldName, "DwellDistance")==0) return base+14;
+    if (fieldName[0]=='I' && strcmp(fieldName, "InRange")==0) return base+15;
     return basedesc ? basedesc->findField(fieldName) : -1;
 }
 
@@ -592,8 +609,9 @@ const char *TraCIDemo11pMessageDescriptor::getFieldTypeString(int field) const
         "int",
         "int",
         "double",
+        "bool",
     };
-    return (field>=0 && field<15) ? fieldTypeStrings[field] : nullptr;
+    return (field>=0 && field<16) ? fieldTypeStrings[field] : nullptr;
 }
 
 const char **TraCIDemo11pMessageDescriptor::getFieldPropertyNames(int field) const
@@ -675,6 +693,7 @@ std::string TraCIDemo11pMessageDescriptor::getFieldValueAsString(void *object, i
         case 12: return long2string(pp->getTimeToReach());
         case 13: return long2string(pp->getDwellTime());
         case 14: return double2string(pp->getDwellDistance());
+        case 15: return bool2string(pp->getInRange());
         default: return "";
     }
 }
@@ -700,6 +719,7 @@ bool TraCIDemo11pMessageDescriptor::setFieldValueAsString(void *object, int fiel
         case 12: pp->setTimeToReach(string2long(value)); return true;
         case 13: pp->setDwellTime(string2long(value)); return true;
         case 14: pp->setDwellDistance(string2double(value)); return true;
+        case 15: pp->setInRange(string2bool(value)); return true;
         default: return false;
     }
 }

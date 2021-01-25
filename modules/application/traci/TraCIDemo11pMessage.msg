@@ -50,4 +50,9 @@ packet TraCIDemo11pMessage extends BaseFrame1609_4 {
     int DwellTime;
     double DwellDistance; 
     
+    
+    // RSU sends wsm to vehicles in range
+    
+    bool InRange; 
+    
 }

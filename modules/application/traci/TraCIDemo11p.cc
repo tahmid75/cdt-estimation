@@ -215,13 +215,15 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
     if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
 
+    //if(((int) simTime().dbl()) % 2 == 0 ){
+
         // Getting vehicle data
         Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
         double vehicleSpeed = mobility->getSpeed();
         int vehicleID = mobility->getId();
         double simulationTime = simTime().dbl();
 
-        //std::cout << "Heading Angle: " << mobility->getHeading().getRad() << endl ;
+
 
         // Creating tuple of information
         std::tuple<veins::Coord, double, double> vehicleData (vehicleCoord, vehicleSpeed, simulationTime);
@@ -254,11 +256,16 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                     wsm->setSenderPositionRLDCO(vehicleCoord);
                     wsm->setHopCountRLDCO(0);
                     sendDown(wsm);
+                    std::cout << "This vehicle within range." << endl;
+                    std::cout << "-----------------" << endl ;
 
-                    //std::cout << "----------------------------------" << endl;
-                }
+                    // Finding the exit point.
 
 
+                } // If within Range
+
+
+                // If not within range
                 else{
 
                     Coord oldest = get<0>(registry.vehicleRegistry[vehicleID][size-1]) ;
@@ -271,9 +278,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                     std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
 
                     if(!output.empty()) {
-                        //std::cout << "Line containing the points " << p1.first << "," << p1.second << " and " ;
-                        //std::cout << p2.first << "," << p2.second << " intersects RSU "  << rsu.first << "("<< rsu.second.x << "," << rsu.second.y << ") at: " << endl;
-
 
                         Coord initDist(rsu.second - oldest);
 
@@ -329,14 +333,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                         X.push_back(xTrain);
                                         Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
 
-                                        /*
-                                        std::cout << "{"
-                                        << linearDistance(current, next)
-                                        << ", "
-                                        << (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 << "}, "
-                                        << get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1])
-                                        << endl ;
-                                        */
                                     }
                                 }
 
@@ -427,25 +423,15 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
 
         // If wsm from another car
         if(  wsm->getSenderType() == 1){
-            //std::cout << "A vehicle received this message from a another vehicle" << std::endl;
-            //std::cout << "Sender Type: " << wsm->getSenderType() << endl;
 
             Coord vehicleCoord = wsm->getSenderPositionRLDCO();
             int vehicleID = wsm->getSenderAddress();
             float vehicleSpeed = wsm->getSenderSpeedRLDCO();
 
-            /*
-            std::cout << "Sender Type: " << wsm->getSenderType()  << endl;
-            std::cout << "Sender Address: " << vehicleID  << endl;
-            std::cout << "Sender Speed: " << vehicleSpeed << endl;
-            std::cout << "Sender Position: " << vehicleCoord << endl;
-            std::cout << "Current Hop Count: " << hopCount << endl;
-            */
 
             if(wsm->getHopCountRLDCO() < 3){
                 wsm->setHopCountRLDCO(hopCount+1);
                 sendDelayedDown(wsm->dup(), uniform(1,3));
-                //std::cout << "Flooding." << endl;
             }
 
             else{
@@ -458,24 +444,36 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
 
         else{ // If WSM from a RSU
 
-            //std::cout << "A vehicle received this message from a RSU" << std::endl;
+            if(wsm->getInRange() == true ){ // vehicle in range of an rsu
 
-            Coord rsuCoord = wsm->getSenderPositionRLDCO();
-            int rsuID = wsm->getSenderAddress();
+                  Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
+                  int rsuID = wsm->getSenderAddress();
 
-            // Adding to RSU Registry if not already present
-            if ( registry.rsuRegistry.find(rsuID) == registry.rsuRegistry.end() ) {
-                registry.rsuRegistry[rsuID] = rsuCoord ;
+                  // Logging locations
+                  vehicleLog.open("results/vehicleLog.csv",  ios::out | ios::app);
+                  vehicleLog << mobility->getId() << ", " << (int) simTime().dbl() << ", " << vehicleCoord.x << "," << vehicleCoord.y << "," << rsuID <<  "\n";
+                  vehicleLog.close();
             }
 
+            else{ // may not be in range.
 
-            if(wsm->getHopCountRLDCO() < 3){
-                wsm->setHopCountRLDCO(hopCount+1);
-                sendDelayedDown(wsm->dup(), uniform(1,3)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
-            }
+                Coord rsuCoord = wsm->getSenderPositionRLDCO();
+                int rsuID = wsm->getSenderAddress();
 
-            else{
-                //std::cout << "All hops completed. Discarding WSM" << endl;
+                // Adding to RSU Registry if not already present
+                if ( registry.rsuRegistry.find(rsuID) == registry.rsuRegistry.end() ) {
+                    registry.rsuRegistry[rsuID] = rsuCoord ;
+                }
+
+
+                if(wsm->getHopCountRLDCO() < 3){
+                    wsm->setHopCountRLDCO(hopCount+1);
+                    sendDelayedDown(wsm->dup(), uniform(1,3)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
+                }
+
+                else{
+                    //std::cout << "All hops completed. Discarding WSM" << endl;
+                }
             }
 
         }

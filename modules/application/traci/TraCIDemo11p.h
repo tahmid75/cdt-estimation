@@ -26,9 +26,8 @@
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/base/utils/Coord.h"
 
+#include <fstream>
 
-// Tahmid. Adding a new message type
-//#include "veins/modules/application/traci/MILPWaveShortMessage_m.h"
 
 
 namespace veins {
@@ -51,6 +50,8 @@ class VEINS_API TraCIDemo11p : public DemoBaseApplLayer {
 public:
     void initialize(int stage) override;
     void finish() override;
+
+    fstream vehicleLog;
 
 protected:
     simtime_t lastDroveAt;

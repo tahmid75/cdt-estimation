@@ -20,14 +20,16 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-#include <veins/modules/application/traci/Registry.h>
 
+#include "TraCIDemoRSU11p.h"
+
+#include <veins/modules/application/traci/Registry.h>
 #include "veins/base/utils/Coord.h"
-#include "veins/modules/application/traci/TraCIDemoRSU11p.h"
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
-#include <typeinfo>
-#include <iostream>
+
+
 using namespace veins;
+using namespace std;
 
 
 Define_Module(veins::TraCIDemoRSU11p);
@@ -35,11 +37,14 @@ Define_Module(veins::TraCIDemoRSU11p);
 Registry edge;
 
 
+//log.open("./results/node_results.txt");
+
+
+
 double distance(Coord& a,  Coord& b) {
     Coord dist(a - b);
     return dist.length();
 }
-
 
 
 void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
@@ -179,15 +184,16 @@ void TraCIDemoRSU11p::initialize(int stage) {
         //request_event = new cMessage("request_interval"); // request_resources is the message type
         //request_tolerance_event = new cMessage("request_tolerance"); // request_tollerance is the message type to finish the request process.
 
-
         broadcast_event = new cMessage("boradcast_event");
-
         scheduleAt(simTime() + 5, broadcast_event);
-
-        stage++;
 
         request_event = new cMessage("request_event");
         scheduleAt(simTime() + 30, request_event);
+
+        vehicle_event = new cMessage("vehicle_event");
+        scheduleAt(simTime() + 2, vehicle_event);
+
+        stage++;
 
     }
 
@@ -218,55 +224,74 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         baseMob = FindModule<BaseMobility*>::findSubModule(getParentModule());
 
         TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
-
         populateWSM(wsm);
         wsm->setSenderType(0);
         wsm->setSenderAddress(myId);
         wsm->setSenderPositionRLDCO(baseMob->getPositionAt(simTime().dbl()));
         wsm->setHopCountRLDCO(0);
         sendDown(wsm);
-        //std::cout << "Message sent from RSU" << endl ;
-
-       // std::cout << "--------------------------" << endl;
 
         if(simTime().dbl() < 100)
         scheduleAt(simTime() + 5, msg);
 
-    } else if(msg == request_tolerance_event)  {
-
-        // Schedule the next interval to request, if necessary.
-        scheduleAt(simTime() + request_interval_size + request_tolerance_size, request_tolerance_event);
-
     }
 
+    //else if(msg == request_tolerance_event)  {
+        // Schedule the next interval to request, if necessary.
+     //   scheduleAt(simTime() + request_interval_size + request_tolerance_size, request_tolerance_event);
 
-    else if(msg== request_event){
+    //}
+
+
+    else if(msg== request_event){ // Event is an application request
 
         double appStart = simTime().dbl() + 65 ;
+        int appEnd = appStart + 15;
 
 
-        std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
+       // std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
+        //std::cout << "App start time: " << appStart << ". App end time: " << appEnd << endl ;
 
-        std::cout << "App start time: " << appStart << ". App end time: " << appStart + 15 << endl ;
-
-
-
-        int vehicleCount = 0;
+        int vehicleCountStart = 0;
+        int vehicleCountThrough = 0;
 
         for (auto const& vehicle : edge.msgRegistry[myId]){
             if(appStart >= get<2>(vehicle.second) && appStart <= get<3>(vehicle.second) ){
-                vehicleCount++;
+                vehicleCountStart++;
+            }
+
+            if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
+                vehicleCountThrough++;
             }
 
         }
 
+        //std::cout << "Vehicles available at the time of start: " << vehicleCountStart << endl ;
+        //std::cout << "Vehicles available throughout execution: " << vehicleCountThrough << endl ;
+        //std::cout << "--------------------------" << endl ;
 
-        std::cout << "Vehicles available at the time of start: " << vehicleCount << endl ;
-        std::cout << "--------------------------" << endl ;
+        // Logging predictions
+        predictLog.open("results/predictions.csv",  ios::out | ios::app);
+        predictLog << myId << ", " << appStart << "," << appEnd << ", " << vehicleCountStart << ","<< vehicleCountThrough << "\n";
+        predictLog.close();
 
 
         scheduleAt(simTime() + 20, request_event);
     }
+
+
+    else if(msg == vehicle_event){ // Check for vehicles in range
+
+        TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
+        populateWSM(wsm);
+        wsm->setSenderType(0);
+        wsm->setInRange(true);
+        wsm->setSenderAddress(myId);
+        sendDown(wsm);
+        scheduleAt(simTime() + 2, vehicle_event);
+
+    }
+
 
 }
 

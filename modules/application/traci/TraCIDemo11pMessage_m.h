@@ -58,6 +58,11 @@ namespace veins {
  *     int DwellTime;
  *     double DwellDistance;
  * 
+ * 
+ *     // RSU sends wsm to vehicles in range
+ * 
+ *     bool InRange;
+ * 
  * }
  * </pre>
  */
@@ -79,6 +84,7 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     int TimeToReach;
     int DwellTime;
     double DwellDistance;
+    bool InRange;
 
   private:
     void copy(const TraCIDemo11pMessage& other);
@@ -131,6 +137,8 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     virtual void setDwellTime(int DwellTime);
     virtual double getDwellDistance() const;
     virtual void setDwellDistance(double DwellDistance);
+    virtual bool getInRange() const;
+    virtual void setInRange(bool InRange);
 };
 
 inline void doParsimPacking(omnetpp::cCommBuffer *b, const TraCIDemo11pMessage& obj) {obj.parsimPack(b);}

@@ -22,6 +22,22 @@
 
 #pragma once
 
+#include <omnetpp.h>
+#include <string.h>
+#include <string>
+#include <algorithm>
+#include <iostream>
+#include <vector>
+#include <stdio.h>
+#include <sstream>
+#include <typeinfo>
+#include <fstream>
+#include <utility>
+
+
+using namespace omnetpp;
+using namespace std;
+
 #include "veins/modules/application/ieee80211p/DemoBaseApplLayer.h"
 
 
@@ -44,10 +60,16 @@ public:
     double request_tolerance_size;
     double rsuXCoord;
     double rsuYCoord;
+
+
     // Creating the events
     cMessage* request_event;
-    cMessage* request_tolerance_event;
+    //cMessage* request_tolerance_event;
     cMessage* broadcast_event;
+    cMessage* vehicle_event;
+
+
+    fstream predictLog;
 
 protected:
     void onWSM(BaseFrame1609_4* wsm) override;
