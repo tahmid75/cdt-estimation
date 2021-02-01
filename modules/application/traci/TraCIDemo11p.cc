@@ -238,7 +238,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
             registry.vehicleRegistry[vehicleID].pop_back();
         }
 
-        if(size> 2){
+        if(size> 2){ // If we have atleast 2 historic data points to work with
+
             // Checking if path crosses any RSU range in any way
             for (auto const& rsu : registry.rsuRegistry)
             {
@@ -246,21 +247,92 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                 if(currentDist.length() < 800){ // within range
 
-                    // Sending a WSM Message to currentRSU
-                    TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
-                    populateWSM(wsm);
-                    wsm->setSenderType(1);
-                    wsm->setSenderAddress(vehicleID);
-                    wsm->setTargetAddress(rsu.first);
-                    wsm->setSenderSpeedRLDCO(vehicleSpeed);
-                    wsm->setSenderPositionRLDCO(vehicleCoord);
-                    wsm->setHopCountRLDCO(0);
-                    sendDown(wsm);
-                    std::cout << "This vehicle within range." << endl;
-                    std::cout << "-----------------" << endl ;
-
+                    //
                     // Finding the exit point.
+                    //
 
+                    Coord oldest = get<0>(registry.vehicleRegistry[vehicleID][size-1]) ;
+                    auto cp = std::make_pair(rsu.second.x, rsu.second.y);
+                    auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
+                    auto p2 = std::make_pair(oldest.x, oldest.y);
+
+                    std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
+
+                    if(!output.empty()) { // We got some intersecting points
+
+
+                        Coord entry;
+                        Coord exit;
+                        Coord a(get<0>(output[0]), get<1>(output[0])); // Intersecting point.
+                        Coord b(get<0>(output[1]), get<1>(output[1])); // Intersecting point.
+
+                        if(linearDistance(a,oldest) < linearDistance(b, oldest)){
+                            entry = a;
+                            exit = b;
+                        }
+                        else{
+                            entry = b;
+                            exit = a;
+                        }
+
+
+                        //double oldestTime = get<2>(registry.vehicleRegistry[vehicleID][size-1]) ;
+
+                        double totalSpeed = 0;
+                        int count = 0;
+
+                        std::vector<std::vector<double>> X;
+                        std::vector<double> Y;
+
+                        for(int j=0; j < size; j++){
+                            totalSpeed += std::get<1>(registry.vehicleRegistry[vehicleID][j]);
+                            count += 1;
+
+                            Coord current = get<0>(registry.vehicleRegistry[vehicleID][j]);
+                            Coord next = get<0>(registry.vehicleRegistry[vehicleID][j+1]);
+
+                            if(j < size-1){
+                               std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                                X.push_back(xTrain);
+                                Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
+                            }
+                        }
+
+
+                        LinearRegression mlr(X, Y, NODEBUG);
+                        mlr.fit();
+
+                        double averageSpeed = totalSpeed/count;
+                        //double entryDistance = linearDistance(vehicleCoord, entry);
+                        double dwellDistance = linearDistance(vehicleCoord, exit);
+                        //int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
+                        int dwellTime = mlr.predict({dwellDistance, averageSpeed});
+
+
+                        // Sending a WSM Message to the nextRSU
+                        TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
+                        populateWSM(wsm);
+                        wsm->setSenderType(1);
+                        wsm->setSenderAddress(vehicleID);
+                        wsm->setMessageTime((int)simTime().dbl());
+                        wsm->setTargetAddress(rsu.first);
+                        //wsm->setSenderSpeedRLDCO(vehicleSpeed);
+                        //wsm->setSenderVelocity(velocity);
+                        //wsm->setAverageSpeed(averageSpeed);
+                        wsm->setSenderPositionRLDCO(vehicleCoord);
+                        //wsm->setEntryCoord(entry);
+                        wsm->setExitCoord(exit);
+                        wsm->setTimeToReach(0); // Already in range
+                        wsm->setDwellDistance(dwellDistance);
+                        wsm->setDwellTime(dwellTime);
+                        wsm->setHopCountRLDCO(0);
+                        sendDown(wsm);
+
+
+
+                        //std::cout << "This vehicle is within range. Calculated Exit point. " << endl;
+                        //std::cout << "-----------------" << endl ;
+                    }
 
                 } // If within Range
 
@@ -284,6 +356,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         if(initDist.length() > currentDist.length()){ // vehicle moving towards the RSU
 
                             if(currentDist.length() < 2400){
+
                                 /*
                                 std::cout << "Vehicle ID: " << vehicleID << endl;
                                 std::cout << "Trajectory intersects: "<< rsu.first << endl;
@@ -298,8 +371,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                                 Coord entry;
                                 Coord exit;
-                                Coord a(get<0>(output[0]), get<1>(output[0]));
-                                Coord b(get<0>(output[1]), get<1>(output[1]));
+                                Coord a(get<0>(output[0]), get<1>(output[0])); // Intersecting point.
+                                Coord b(get<0>(output[1]), get<1>(output[1])); // Intersecting point.
 
                                 if(linearDistance(a,vehicleCoord) < linearDistance(b, vehicleCoord)){
                                     entry = a;
@@ -311,7 +384,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 }
 
                                 double oldestTime = get<2>(registry.vehicleRegistry[vehicleID][size-1]) ;
-                                double velocity = calculateVelocity(vehicleCoord, oldest, simulationTime, oldestTime);
+                                //double velocity = calculateVelocity(vehicleCoord, oldest, simulationTime, oldestTime);
 
                                 double totalSpeed = 0;
                                 int count = 0;
@@ -326,13 +399,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     Coord current = get<0>(registry.vehicleRegistry[vehicleID][j]);
                                     Coord next = get<0>(registry.vehicleRegistry[vehicleID][j+1]);
 
-
                                     if(j < size-1){
-
                                        std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
                                         X.push_back(xTrain);
                                         Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
-
                                     }
                                 }
 
@@ -365,7 +435,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setMessageTime((int)simTime().dbl());
                                 wsm->setTargetAddress(rsu.first);
                                 wsm->setSenderSpeedRLDCO(vehicleSpeed);
-                                wsm->setSenderVelocity(velocity);
+                                //wsm->setSenderVelocity(velocity);
                                 wsm->setAverageSpeed(averageSpeed);
                                 wsm->setSenderPositionRLDCO(vehicleCoord);
                                 wsm->setEntryCoord(entry);
