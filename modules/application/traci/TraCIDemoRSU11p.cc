@@ -242,37 +242,39 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     else if(msg== request_event){ // Event is an application request
 
-        double appStart = simTime().dbl() + rand() % 20 + 10 ;
-        int executionTime = rand() % 20 + 10;
-        int appEnd = appStart + executionTime;
+        if(simTime().dbl() > 200){
+
+            double appStart = simTime().dbl() + rand() % 20 + 10 ;
+            int executionTime = rand() % 20 + 10;
+            int appEnd = appStart + executionTime;
 
 
-        std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
-        std::cout << "App start time: " << appStart << ". App Exeucution Time: " << executionTime <<". App end time: " << appEnd << endl ;
+            std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
+            std::cout << "App start time: " << appStart << ". App Exeucution Time: " << executionTime <<". App end time: " << appEnd << endl ;
 
-        int vehicleCountStart = 0;
-        int vehicleCountThrough = 0;
+            int vehicleCountStart = 0;
+            int vehicleCountThrough = 0;
 
-        for (auto const& vehicle : edge.msgRegistry[myId]){
-            if(appStart >= get<2>(vehicle.second) && appStart <= get<3>(vehicle.second) ){
-                vehicleCountStart++;
+            for (auto const& vehicle : edge.msgRegistry[myId]){
+                if(appStart >= get<2>(vehicle.second) && appStart <= get<3>(vehicle.second) ){
+                    vehicleCountStart++;
+                }
+
+                if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
+                    vehicleCountThrough++;
+                }
+
             }
 
-            if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
-                vehicleCountThrough++;
-            }
+            std::cout << "Vehicles available at the time of start: " << vehicleCountStart << endl ;
+            std::cout << "Vehicles available throughout execution: " << vehicleCountThrough << endl ;
+            std::cout << "--------------------------" << endl ;
 
+            // Logging predictions
+            predictLog.open("results/predictions.csv",  ios::out | ios::app);
+            predictLog << myId << ", " << appStart << "," << appEnd << ", " << vehicleCountStart << ","<< vehicleCountThrough << "\n";
+            predictLog.close();
         }
-
-        std::cout << "Vehicles available at the time of start: " << vehicleCountStart << endl ;
-        std::cout << "Vehicles available throughout execution: " << vehicleCountThrough << endl ;
-        std::cout << "--------------------------" << endl ;
-
-        // Logging predictions
-        predictLog.open("results/predictions.csv",  ios::out | ios::app);
-        predictLog << myId << ", " << appStart << "," << appEnd << ", " << vehicleCountStart << ","<< vehicleCountThrough << "\n";
-        predictLog.close();
-
 
         scheduleAt(simTime() + 20, request_event);
     }

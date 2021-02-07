@@ -224,7 +224,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
         double simulationTime = simTime().dbl();
 
 
-
         // Creating tuple of information
         std::tuple<veins::Coord, double, double> vehicleData (vehicleCoord, vehicleSpeed, simulationTime);
 
@@ -238,7 +237,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
             registry.vehicleRegistry[vehicleID].pop_back();
         }
 
-        if(size> 2){ // If we have atleast 2 historic data points to work with
+        if(size> 2){ // If we have at least 3 historic data points to work with
 
             // Checking if path crosses any RSU range in any way
             for (auto const& rsu : registry.rsuRegistry)
@@ -253,8 +252,25 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                     Coord oldest = get<0>(registry.vehicleRegistry[vehicleID][size-1]) ;
                     auto cp = std::make_pair(rsu.second.x, rsu.second.y);
-                    auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
-                    auto p2 = std::make_pair(oldest.x, oldest.y);
+                    // Preparing data for x y training for path projection
+                    std::vector<std::vector<double>> xCoordTrain;
+                    std::vector<double> yCoordTrain;
+
+                    for(int j=0; j < size; j++){
+                       Coord current = get<0>(registry.vehicleRegistry[vehicleID][j]);
+                       xCoordTrain.push_back({current.x});
+                       yCoordTrain.push_back(current.y);
+                    }
+
+                    LinearRegression trajectory(xCoordTrain, yCoordTrain, NODEBUG);
+                    trajectory.fit();
+
+                    double p1y = trajectory.predict({vehicleCoord.x});
+                    double p2y = trajectory.predict({oldest.x});
+                    //auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
+                    //auto p2 = std::make_pair(oldest.x, oldest.y);
+                    auto p1 = std::make_pair(vehicleCoord.x, p1y);
+                    auto p2 = std::make_pair(oldest.x, p2y);
 
                     std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
 
@@ -316,18 +332,13 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         wsm->setSenderAddress(vehicleID);
                         wsm->setMessageTime((int)simTime().dbl());
                         wsm->setTargetAddress(rsu.first);
-                        //wsm->setSenderSpeedRLDCO(vehicleSpeed);
-                        //wsm->setSenderVelocity(velocity);
-                        //wsm->setAverageSpeed(averageSpeed);
                         wsm->setSenderPositionRLDCO(vehicleCoord);
-                        //wsm->setEntryCoord(entry);
                         wsm->setExitCoord(exit);
                         wsm->setTimeToReach(0); // Already in range
                         wsm->setDwellDistance(dwellDistance);
                         wsm->setDwellTime(dwellTime);
                         wsm->setHopCountRLDCO(0);
                         sendDown(wsm);
-
 
 
                         //std::cout << "This vehicle is within range. Calculated Exit point. " << endl;
@@ -337,37 +348,42 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                 } // If within Range
 
 
-                // If not within range
-                else{
+                else{ // If not within range
 
                     Coord oldest = get<0>(registry.vehicleRegistry[vehicleID][size-1]) ;
                     //          first element is coord          id for map    last tuple
+                    Coord initDist(rsu.second - oldest);
 
-                    auto cp = std::make_pair(rsu.second.x, rsu.second.y);
-                    auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
-                    auto p2 = std::make_pair(oldest.x, oldest.y);
+                    if(initDist.length() > currentDist.length()){ // vehicle moving towards the RSU
 
-                    std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
+                        if(currentDist.length() < 2400){
 
-                    if(!output.empty()) {
+                            auto cp = std::make_pair(rsu.second.x, rsu.second.y);
 
-                        Coord initDist(rsu.second - oldest);
+                            // Preparing data for x y training for path projection
+                            std::vector<std::vector<double>> xCoordTrain;
+                            std::vector<double> yCoordTrain;
 
-                        if(initDist.length() > currentDist.length()){ // vehicle moving towards the RSU
+                            for(int j=0; j < size; j++){
+                               Coord current = get<0>(registry.vehicleRegistry[vehicleID][j]);
+                               xCoordTrain.push_back({current.x});
+                               yCoordTrain.push_back(current.y);
+                            }
 
-                            if(currentDist.length() < 2400){
+                            LinearRegression trajectory(xCoordTrain, yCoordTrain, NODEBUG);
+                            trajectory.fit();
 
-                                /*
-                                std::cout << "Vehicle ID: " << vehicleID << endl;
-                                std::cout << "Trajectory intersects: "<< rsu.first << endl;
-                                std::cout << "Current Distance to this RSU is: " << currentDist.length() << endl;
-                                std::cout << "Distance to oldest location: " << initDist.length() << endl;
-                                std::cout << "Oldest Position: (" << oldest.x <<"," << oldest.y <<")" << endl;
-                                std::cout << "Current Position: (" << vehicleCoord.x <<"," << vehicleCoord.y <<")" << endl;
-                                std::cout << "RSU Position: (" << rsu.second.x <<"," << rsu.second.y <<")" << endl;
-                                std::cout << "Entry Point: (" << get<0>(output[0]) << "," << get<1>(output[0]) << ")" << endl ;
-                                std::cout << "Exit Point: (" << get<0>(output[1]) << "," << get<1>(output[1]) << ")" << endl ;
-                                */
+                            double p1y = trajectory.predict({vehicleCoord.x});
+                            double p2y = trajectory.predict({oldest.x});
+                            //auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
+                            //auto p2 = std::make_pair(oldest.x, oldest.y);
+                            auto p1 = std::make_pair(vehicleCoord.x, p1y);
+                            auto p2 = std::make_pair(oldest.x, p2y);
+
+
+                            std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
+
+                            if(!output.empty()) {
 
                                 Coord entry;
                                 Coord exit;
@@ -416,17 +432,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
                                 int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
-                                /*
-                                std::cout << "Distance to entry: " << entryDistance << endl;
-                                std::cout<< "Average Speed: " << averageSpeed << endl ;
-                                std::cout << "Distance / Speed: " << entryDistance/averageSpeed << endl;
-                                std::cout << "MLR Predicted time to reach: " << timeToReach << endl ;
-                                std::cout << "MLR Predicted Dwell Distance: " << dwellDistance << endl ;
-                                std::cout << "MLR Predicted DT: " << dwellTime << endl ;
-                                std::cout << "Distance to Entry: " << distEntry << endl;
-                                std::cout << "Distance to Exit: " << linearDistance(vehicleCoord, exit) << endl;
-                                */
-
                                 // Sending a WSM Message to the nextRSU
                                 TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
                                 populateWSM(wsm);
@@ -448,22 +453,13 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                                 //std::cout << "----------------------------------" << endl;
 
-                            }
+                            } // If intersects
 
-                            else{
-                                /*
-                                cout << "Vehicle too far" << endl;
-                                */
-                            }
+                        }// if within 2400
 
-
-                        }// if moving towards.
-
-
-                    } // if intersects. not empty.
+                    } // if moving towards
 
                 } // if out of range
-
 
             } // For each known rsu
 
@@ -576,17 +572,6 @@ void TraCIDemo11p::finish()
     //std::cout << simTime().dbl() << endl ;
 
     if(simTime().dbl() == 3000){
-        std::cout << "And now my watch has ended: " << mobility->getId() << endl;
-        std::cout << simTime().dbl() << endl;
-        std::cout << "............................" << endl << endl;
-
-
-        for(int i=0; i< 5; i++){
-            std::cout << "Coordinate : " << get<0>(registry.vehicleRegistry[262][i])<< endl;
-            std::cout << "Speed : " << get<1>(registry.vehicleRegistry[262][i])<< endl;
-            std::cout << "Simtime : " << get<2>(registry.vehicleRegistry[262][i])<< endl;
-            std::cout << "----------------------------------" << endl;
-        }
 
 
         LinearRegression mlr({
