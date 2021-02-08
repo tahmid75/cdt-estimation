@@ -92,56 +92,12 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
                     //edge.msgRegistry[myId][vehicleID].insert(edge.msgRegistry[myId][vehicleID].begin(), vehicleData);
 
                     edge.msgRegistry[myId][vehicleID] = vehicleData;
-
-                    //std::cout << "RSU Received this WSM Message from a vehicle out of range." << endl;
-                    //std::cout << "Last Known Time: " << lastKnown << endl;
-                    //std::cout << "RSU Position: " << rsuCoord << endl ;
-                    //std::cout << "RSU ID: " << myId << endl;
-                    //std::cout << "Message Target ID: " << wsm->getTargetAddress() << endl;
-                    //std::cout << "Sender Type: " << wsm->getSenderType()  << endl;
-                    //std::cout << "New Message Time (SimTime): " <<  messageTime << endl;
-                    //std::cout << "Time to Reach: " << timeToReach << endl;
-                    //std::cout << "Dwell Time: " << dwellTime << endl ;
-                   // std::cout << "Dwell Start " << dwellStart << endl;
-                   // std::cout << "Dwell End: " << dwellEnd << endl;
-                    //std::cout << "Dwell Distance: " << dwellDistance << endl ;
-                   // std::cout << "Vehicle ID: " << vehicleID  << endl;
-                    //std::cout << "Inserted: " << get<0>(edge.msgRegistry[myId][vehicleID]) << endl;
-                    //std::cout << "Current Speed: " << vehicleSpeed << endl;
-                    //std::cout << "Average Speed: " << wsm->getAverageSpeed() << endl;
-                    //std::cout << "Velocity : " << wsm->getSenderVelocity() << endl;
-                    //std::cout << "Sender Position: " << wsm->getEntryCoord() << endl;
-                    //std::cout << "Entry Co-ordinate: " << wsm->getEntryCoord() << endl;
-                   // std::cout << "Exit Coordinate: " << wsm->getExitCoord() << endl;
-                    //std::cout << "Hop Count: " << hopCount << endl;
-                    //std::cout << "Distance from Vehicle: " << distance(vehicleCoord, rsuCoord) << endl;
-
-
-                    /*
-                    for (auto const& rsu : edge.msgRegistry)
-                    {
-                        if(rsu.first == myId){
-
-                            for (auto const& vehicle : rsu.second){
-                                std::cout << "....." << endl;
-                                std::cout<< "Vehicle ID: " <<  vehicle.first << endl ;
-                                std::cout << "Entry Time: " << get<2>(vehicle.second) << endl ;
-                                std::cout << "Exit Time: " << get<3>(vehicle.second) << endl ;
-
-                            }
-
-                        }
-
-                    }
-                    */
-
                     //std::cout  << "----------------------------" << endl;
 
                 }
 
                 else{ // Vehicle in range
 
-                    //edge.msgRegistry[myId].insert(edge.msgRegistry[myId].begin(), {vehicleID, messageTime});
                     std::tuple<int, double, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd );
                     edge.msgRegistry[myId][vehicleID] = vehicleData;
 
@@ -242,15 +198,15 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     else if(msg== request_event){ // Event is an application request
 
-        if(simTime().dbl() > 200){
+        if(simTime().dbl() > 100){
 
-            double appStart = simTime().dbl() + rand() % 20 + 10 ;
-            int executionTime = rand() % 20 + 10;
+            double appStart = simTime().dbl() + rand() % 5 + 1 ;
+            int executionTime = rand() % 10 + 1;
             int appEnd = appStart + executionTime;
 
 
-            std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
-            std::cout << "App start time: " << appStart << ". App Exeucution Time: " << executionTime <<". App end time: " << appEnd << endl ;
+            //std::cout << "App request at: " << simTime() << "s. At RSU: " << myId << endl ;
+           // std::cout << "App start time: " << appStart << ". App Exeucution Time: " << executionTime <<". App end time: " << appEnd << endl ;
 
             int vehicleCountStart = 0;
             int vehicleCountThrough = 0;
@@ -266,17 +222,17 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
             }
 
-            std::cout << "Vehicles available at the time of start: " << vehicleCountStart << endl ;
-            std::cout << "Vehicles available throughout execution: " << vehicleCountThrough << endl ;
-            std::cout << "--------------------------" << endl ;
+           // std::cout << "Vehicles available at the time of start: " << vehicleCountStart << endl ;
+           // std::cout << "Vehicles available throughout execution: " << vehicleCountThrough << endl ;
+           // std::cout << "--------------------------" << endl ;
 
             // Logging predictions
-            predictLog.open("results/predictions.csv",  ios::out | ios::app);
+            predictLog.open("results/predictions_1-5_05-10.csv",  ios::out | ios::app);
             predictLog << myId << ", " << appStart << "," << appEnd << ", " << vehicleCountStart << ","<< vehicleCountThrough << "\n";
             predictLog.close();
         }
 
-        scheduleAt(simTime() + 20, request_event);
+        scheduleAt(simTime() + rand() % 10 + 10 , request_event);
     }
 
 
@@ -292,19 +248,11 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     }
 
-
 }
 
 
 void TraCIDemoRSU11p:: onBSM(DemoSafetyMessage* bsm)
 {
-
-
-
-
-
-
-
 
 }
 

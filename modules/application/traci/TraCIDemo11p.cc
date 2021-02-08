@@ -213,7 +213,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
     DemoBaseApplLayer::handlePositionUpdate(obj);
 
-    if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
+    if(((int) simTime().dbl()) % (rand() % 6 + 7) == 0 ){
 
     //if(((int) simTime().dbl()) % 2 == 0 ){
 
@@ -451,7 +451,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setHopCountRLDCO(0);
                                 sendDown(wsm);
 
-                                //std::cout << "----------------------------------" << endl;
+                                //std::cout<< (int)simTime().dbl() << endl;
+                                //std::cout << timeToReach << endl;
+                               // std::cout << "----------------------------------" << endl;
 
                             } // If intersects
 
@@ -516,7 +518,7 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                   int rsuID = wsm->getSenderAddress();
 
                   // Logging locations
-                  vehicleLog.open("results/vehicleLog.csv",  ios::out | ios::app);
+                  vehicleLog.open("results/vehicleLog_2s.csv",  ios::out | ios::app);
                   vehicleLog << mobility->getId() << ", " << (int) simTime().dbl() << ", " << vehicleCoord.x << "," << vehicleCoord.y << "," << rsuID <<  "\n";
                   vehicleLog.close();
             }
