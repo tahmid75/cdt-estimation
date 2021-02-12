@@ -200,7 +200,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         if(simTime().dbl() > 100){
 
-            double appStart = simTime().dbl() + rand() % 5 + 1 ;
+            double appStart = simTime().dbl() + rand() % 10 + 50 ;
             int executionTime = rand() % 10 + 1;
             int appEnd = appStart + executionTime;
 
@@ -227,7 +227,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
            // std::cout << "--------------------------" << endl ;
 
             // Logging predictions
-            predictLog.open("results/predictions_1-5_05-10.csv",  ios::out | ios::app);
+            predictLog.open("results/predictions_random2_50-60_01-10.csv",  ios::out | ios::app);
             predictLog << myId << ", " << appStart << "," << appEnd << ", " << vehicleCountStart << ","<< vehicleCountThrough << "\n";
             predictLog.close();
         }

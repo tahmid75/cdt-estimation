@@ -213,9 +213,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
     DemoBaseApplLayer::handlePositionUpdate(obj);
 
-    if(((int) simTime().dbl()) % (rand() % 6 + 7) == 0 ){
+     if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
 
-    //if(((int) simTime().dbl()) % 2 == 0 ){
+    //if(((int) simTime().dbl()) % 10 == 0 ){
 
         // Getting vehicle data
         Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
@@ -233,11 +233,11 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
         // Removing last data
         int size = registry.vehicleRegistry[vehicleID].size();
 
-        if( size > 10){
+        if( size > 15){
             registry.vehicleRegistry[vehicleID].pop_back();
         }
 
-        if(size> 2){ // If we have at least 3 historic data points to work with
+        if(size > 4){ // If we have at least 5 historic data points to work with
 
             // Checking if path crosses any RSU range in any way
             for (auto const& rsu : registry.rsuRegistry)
@@ -453,7 +453,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                                 //std::cout<< (int)simTime().dbl() << endl;
                                 //std::cout << timeToReach << endl;
-                               // std::cout << "----------------------------------" << endl;
+                                //std::cout << "----------------------------------" << endl;
 
                             } // If intersects
 
@@ -518,7 +518,7 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                   int rsuID = wsm->getSenderAddress();
 
                   // Logging locations
-                  vehicleLog.open("results/vehicleLog_2s.csv",  ios::out | ios::app);
+                  vehicleLog.open("results/vehicleLog_random2_50-60_01-10.csv",  ios::out | ios::app);
                   vehicleLog << mobility->getId() << ", " << (int) simTime().dbl() << ", " << vehicleCoord.x << "," << vehicleCoord.y << "," << rsuID <<  "\n";
                   vehicleLog.close();
             }
