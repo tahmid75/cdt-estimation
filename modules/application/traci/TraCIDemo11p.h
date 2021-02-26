@@ -52,6 +52,7 @@ public:
     void finish() override;
 
     fstream vehicleLog;
+    cMessage* inRange;
 
 protected:
     simtime_t lastDroveAt;

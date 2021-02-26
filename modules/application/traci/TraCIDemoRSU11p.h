@@ -67,6 +67,7 @@ public:
     //cMessage* request_tolerance_event;
     cMessage* broadcast_event;
     cMessage* vehicle_event;
+    cMessage* dwellTime_event;
 
 
     fstream predictLog;

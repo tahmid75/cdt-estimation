@@ -20,4 +20,11 @@ class Registry
 
     std::map<int, std::map<int, std::tuple<int, double, int, int>>> msgRegistry;
 
+    //       RSU          msgTime        vehicleId(i,...i+n)
+    std::map<int, std::map<int, std::vector<int>>> inRangeVehicle;
+    //std::map<int, std::map<int, int>> dtPrediction;
+
+        //   RSU          time  volume
+    std::map<int, std::map<int, int>> predictedVolume;
+
 };

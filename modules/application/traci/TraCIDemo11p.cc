@@ -29,6 +29,7 @@
 #include <iostream>
 #include <string>
 #include <cmath>
+#include<ctime>
 using namespace std;
 using namespace veins;
 
@@ -37,9 +38,8 @@ Define_Module(veins::TraCIDemo11p);
 
 
 Registry registry;
-int edgeRadius = 800;
-int threshold = 8000;
-auto rsuRange = 800.0;
+int NodeRange = 1000;
+int inRangeMsgSent = 0;
 
 
 double linearDistance(Coord& a,  Coord& b) {
@@ -183,6 +183,12 @@ void TraCIDemo11p::initialize(int stage)
 {
     DemoBaseApplLayer::initialize(stage);
 
+    if (stage == 0) {
+        inRange = new cMessage("inRange");
+        scheduleAt(simTime() + 1, inRange);
+        stage++;
+    }
+
 }
 
 
@@ -195,7 +201,7 @@ tuple<int, double> findNearestEdge(Coord vehicleCoord){
     for (auto const& rsu : registry.rsuRegistry)
     {
         Coord dist(vehicleCoord - rsu.second);
-        runningDistance = abs( sqrt( pow(vehicleCoord.x - rsu.second.x,2) + pow(vehicleCoord.y - rsu.second.y, 2) ) - edgeRadius );
+        runningDistance = abs( sqrt( pow(vehicleCoord.x - rsu.second.x,2) + pow(vehicleCoord.y - rsu.second.y, 2) ) - NodeRange );
 
         if(runningDistance < lowest){
             lowest= runningDistance;
@@ -213,14 +219,18 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
     DemoBaseApplLayer::handlePositionUpdate(obj);
 
-     if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
+    Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
+    int vehicleID = mobility->getId();
+    int simulationTime = (int) simTime().dbl();
 
-    //if(((int) simTime().dbl()) % 10 == 0 ){
+
+    if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
+
+    //if(((int) simTime().dbl()) % 15 == 0 ){
 
         // Getting vehicle data
-        Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
+
         double vehicleSpeed = mobility->getSpeed();
-        int vehicleID = mobility->getId();
         double simulationTime = simTime().dbl();
 
 
@@ -244,7 +254,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
             {
                 Coord currentDist(rsu.second - vehicleCoord);
 
-                if(currentDist.length() < 800){ // within range
+                if(currentDist.length() < NodeRange){ // within range
 
                     //
                     // Finding the exit point.
@@ -267,12 +277,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                     double p1y = trajectory.predict({vehicleCoord.x});
                     double p2y = trajectory.predict({oldest.x});
-                    //auto p1 = std::make_pair(vehicleCoord.x, vehicleCoord.y);
-                    //auto p2 = std::make_pair(oldest.x, oldest.y);
                     auto p1 = std::make_pair(vehicleCoord.x, p1y);
                     auto p2 = std::make_pair(oldest.x, p2y);
 
-                    std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
+                    std::vector<Point> output = intersects(p1, p2, cp, NodeRange, false);
 
                     if(!output.empty()) { // We got some intersecting points
 
@@ -319,9 +327,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         mlr.fit();
 
                         double averageSpeed = totalSpeed/count;
-                        //double entryDistance = linearDistance(vehicleCoord, entry);
                         double dwellDistance = linearDistance(vehicleCoord, exit);
-                        //int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
 
@@ -340,9 +346,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         wsm->setHopCountRLDCO(0);
                         sendDown(wsm);
 
-
-                        //std::cout << "This vehicle is within range. Calculated Exit point. " << endl;
-                        //std::cout << "-----------------" << endl ;
                     }
 
                 } // If within Range
@@ -356,7 +359,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                     if(initDist.length() > currentDist.length()){ // vehicle moving towards the RSU
 
-                        if(currentDist.length() < 2400){
+                        if(currentDist.length() < NodeRange*4){
 
                             auto cp = std::make_pair(rsu.second.x, rsu.second.y);
 
@@ -381,7 +384,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                             auto p2 = std::make_pair(oldest.x, p2y);
 
 
-                            std::vector<Point> output = intersects(p1, p2, cp, rsuRange, false);
+                            std::vector<Point> output = intersects(p1, p2, cp, NodeRange, false);
 
                             if(!output.empty()) {
 
@@ -432,6 +435,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
                                 int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
+
                                 // Sending a WSM Message to the nextRSU
                                 TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
                                 populateWSM(wsm);
@@ -440,9 +444,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setMessageTime((int)simTime().dbl());
                                 wsm->setTargetAddress(rsu.first);
                                 wsm->setSenderSpeedRLDCO(vehicleSpeed);
-                                //wsm->setSenderVelocity(velocity);
                                 wsm->setAverageSpeed(averageSpeed);
                                 wsm->setSenderPositionRLDCO(vehicleCoord);
+
                                 wsm->setEntryCoord(entry);
                                 wsm->setExitCoord(exit);
                                 wsm->setTimeToReach(timeToReach);
@@ -451,13 +455,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setHopCountRLDCO(0);
                                 sendDown(wsm);
 
-                                //std::cout<< (int)simTime().dbl() << endl;
-                                //std::cout << timeToReach << endl;
-                                //std::cout << "----------------------------------" << endl;
-
                             } // If intersects
 
-                        }// if within 2400
+                        }// if within 4000
 
                     } // if moving towards
 
@@ -492,21 +492,15 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
         // If wsm from another car
         if(  wsm->getSenderType() == 1){
 
-            Coord vehicleCoord = wsm->getSenderPositionRLDCO();
-            int vehicleID = wsm->getSenderAddress();
-            float vehicleSpeed = wsm->getSenderSpeedRLDCO();
+            if(wsm->getHopCountRLDCO() < 4){
 
+                Coord vehicleCoord = wsm->getSenderPositionRLDCO();
+                int vehicleID = wsm->getSenderAddress();
+                float vehicleSpeed = wsm->getSenderSpeedRLDCO();
 
-            if(wsm->getHopCountRLDCO() < 3){
                 wsm->setHopCountRLDCO(hopCount+1);
-                sendDelayedDown(wsm->dup(), uniform(1,3));
+                sendDelayedDown(wsm->dup(), uniform(1,2));
             }
-
-            else{
-                //std::cout << "Three hops completed. Discarding WSM" << endl;
-            }
-
-            //std::cout  << "-----------------------------" << endl;
 
         }
 
@@ -514,13 +508,29 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
 
             if(wsm->getInRange() == true ){ // vehicle in range of an rsu
 
-                  Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
+                    /*
                   int rsuID = wsm->getSenderAddress();
+                  int vehicleID = mobility->getId();
+                  int simulationTime = (int) simTime().dbl();
 
                   // Logging locations
-                  vehicleLog.open("results/vehicleLog_random2_50-60_01-10.csv",  ios::out | ios::app);
-                  vehicleLog << mobility->getId() << ", " << (int) simTime().dbl() << ", " << vehicleCoord.x << "," << vehicleCoord.y << "," << rsuID <<  "\n";
+                  vehicleLog.open("results/vehicleLog_random_25_05.csv",  ios::out | ios::app);
+                  vehicleLog << mobility->getId() << ", " << simulationTime << ", " << rsuID <<  "\n";
                   vehicleLog.close();
+
+                  // Sending a WSM Message to the nextRSU
+                  TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
+                  populateWSM(wsm);
+                  wsm->setSenderType(1);
+                  wsm->setSenderAddress(vehicleID);
+                  wsm->setMessageTime(simulationTime);
+                  wsm->setTargetAddress(rsuID);
+                  wsm->setHopCountRLDCO(99);
+                  wsm->setInRange(true);
+                  sendDown(wsm);
+
+                  */
+
             }
 
             else{ // may not be in range.
@@ -533,14 +543,9 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                     registry.rsuRegistry[rsuID] = rsuCoord ;
                 }
 
-
-                if(wsm->getHopCountRLDCO() < 3){
+                if(wsm->getHopCountRLDCO() < 4){
                     wsm->setHopCountRLDCO(hopCount+1);
-                    sendDelayedDown(wsm->dup(), uniform(1,3)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
-                }
-
-                else{
-                    //std::cout << "All hops completed. Discarding WSM" << endl;
+                    sendDelayedDown(wsm->dup(), uniform(1,2)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
                 }
             }
 
@@ -548,10 +553,6 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
 
     }
 
-    else{
-        //std::cout<< "Self WSM Message" << endl ;
-        //std::cout  << "-----------------------------" << endl;
-    }
 
 } // onWSM
 
@@ -562,8 +563,50 @@ void TraCIDemo11p:: onBSM(DemoSafetyMessage* bsm)
 
 void TraCIDemo11p::handleSelfMsg(cMessage* msg)
 {
-    //std::cout << "Is this the problem?" << endl;
-    DemoBaseApplLayer::handleSelfMsg(msg);
+
+    //DemoBaseApplLayer::handleSelfMsg(msg);
+
+    if(msg == inRange){
+
+        Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
+        int vehicleID = mobility->getId();
+        int simulationTime = (int) simTime().dbl();
+
+        if(simulationTime > 149){
+
+            for (auto const& rsu : registry.rsuRegistry)
+            {
+                Coord currentDist(rsu.second - vehicleCoord);
+
+                if(currentDist.length() < NodeRange){
+                  // Sending a WSM Message to the current rsu
+                  TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
+                  populateWSM(wsm);
+                  wsm->setSenderType(1);
+                  wsm->setSenderAddress(vehicleID);
+                  wsm->setMessageTime(simulationTime);
+                  wsm->setTargetAddress(rsu.first);
+                  wsm->setHopCountRLDCO(99);
+                  wsm->setInRange(true);
+                  sendDown(wsm);
+
+                  std::cout << "In Range of: "<< rsu.first << ". Vehicle ID: " << vehicleID<<endl;
+                  inRangeMsgSent++;
+
+                  // Logging locations
+                  vehicleLog.open("results/vehicleLog_random_25_05.csv",  ios::out | ios::app);
+                  vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
+                  vehicleLog.close();
+
+                  //std::cout<< "Logged";
+
+                }
+            }
+        }
+
+        scheduleAt(simTime() + 1, inRange);
+
+    }
 
 }
 
@@ -573,9 +616,9 @@ void TraCIDemo11p::finish()
 
     //std::cout << simTime().dbl() << endl ;
 
-    if(simTime().dbl() == 3000){
-
-
+    if(simTime().dbl() == 1000){
+        std::cout << "Message Sent: " << inRangeMsgSent << endl;
+        /*
         LinearRegression mlr({
             {13828.2,20908.8, 10.94},
             {13851,20946.5, 14.77 },
@@ -594,12 +637,9 @@ void TraCIDemo11p::finish()
         for (auto const& x : registry.rsuRegistry)
         {
             std::cout << x.first << ':' << x.second << std::endl ;
-        }
+        }*/
 
     }
-
-
-
 
 
 
