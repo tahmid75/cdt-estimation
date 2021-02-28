@@ -412,6 +412,7 @@ double TraCICommandInterface::Vehicle::getAccumulatedWaitingTime() const
 
 double TraCICommandInterface::getDistance(const Coord& p1, const Coord& p2, bool returnDrivingDistance)
 {
+
     uint8_t variable = DISTANCE_REQUEST;
     std::string simId = "sim0";
     uint8_t variableType = TYPE_COMPOUND;
@@ -438,6 +439,8 @@ double TraCICommandInterface::getDistance(const Coord& p1, const Coord& p2, bool
     buf >> distance;
 
     ASSERT(buf.eof());
+
+
 
     return distance;
 }

@@ -25,9 +25,11 @@
 #include "veins/modules/application/ieee80211p/DemoBaseApplLayer.h"
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/base/utils/Coord.h"
+#include "veins/modules/mobility/traci/TraCICommandInterface.h"
 
 #include <fstream>
 
+using veins::TraCICommandInterface;
 
 
 namespace veins {
@@ -59,6 +61,8 @@ protected:
     bool sentMessage = false;
     int currentSubscribedServiceId;
     int id;
+
+
     //std::vector<Module> modules;
 
 protected:

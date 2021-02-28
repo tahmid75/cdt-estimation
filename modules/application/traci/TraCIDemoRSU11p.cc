@@ -26,6 +26,7 @@
 #include <veins/modules/application/traci/Registry.h>
 #include "veins/base/utils/Coord.h"
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
+#include "veins/modules/mobility/traci/TraCICommandInterface.h"
 
 #include<ctime>
 
@@ -37,8 +38,10 @@ Define_Module(veins::TraCIDemoRSU11p);
 
 Registry edge;
 int rsuRange = 1000;
-std::map<int, int> alpha;
+int rangeThreshold = 3;
+std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
+int wsmReceived = 0;
 
 
 double distance(Coord& a,  Coord& b) {
@@ -49,17 +52,18 @@ double distance(Coord& a,  Coord& b) {
 void updateAlpha(int rsuID, int simulationTime){
 
     std::cout << "Update alpha called for rsu:  "  << rsuID << endl;
+    std::cout << "Previous Alpha: " << alpha[rsuID] << endl;
 
-    int actualVolume = edge.inRangeVehicle[rsuID][simulationTime].size();
-    int predictedVolume = edge.predictedVolume[rsuID][simulationTime];
+    double actualVolume = edge.inRangeVehicle[rsuID][simulationTime].size();
+    double predictedVolume = edge.predictedVolume[rsuID][simulationTime];
 
     if(predictedVolume !=0 && actualVolume !=0){
         alpha[rsuID] = actualVolume/ predictedVolume;
     }
 
-
     std::cout<< "Actual Volume: " << actualVolume <<endl;
     std::cout<< "Predicted Volume: " << predictedVolume << endl ;
+    std::cout << "Division: " << actualVolume/ predictedVolume << endl;
     std::cout<< "Updated Alpha: " << alpha[rsuID]<< endl;
     std::cout<< "------------------" << endl;
 
@@ -75,15 +79,17 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
     // If wsm is from vehicle and targeted to this RSU
     if(wsm->getSenderType() == 1 && wsm->getTargetAddress() == myId){
 
+
         int vehicleID = wsm->getSenderAddress();
         int messageTime = wsm->getMessageTime();
 
         // Logging vehicle information that are already in range for analysis.
         if(wsm->getInRange() == true){
-            std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
+            //std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
             inRangeMsgRcv++;
-            std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
-            std::cout << "---------------------------------"<< endl;
+            wsmReceived++;
+           // std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
+            //std::cout << "---------------------------------"<< endl;
             edge.inRangeVehicle[myId][messageTime].insert(edge.inRangeVehicle[myId][messageTime].begin(), vehicleID);
 
         }
@@ -98,7 +104,10 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
             Coord vehicleCoord = wsm->getSenderPositionRLDCO();
             int lastKnown = get<0>(edge.msgRegistry[myId][vehicleID]);
 
-            if(lastKnown != messageTime && lastKnown < messageTime && distance(vehicleCoord, rsuCoord) < 4000 ){
+            // is this a new message
+            if(lastKnown != messageTime && lastKnown < messageTime && distance(vehicleCoord, rsuCoord) < rsuRange * rangeThreshold ){
+
+                wsmReceived++;
 
                 //Retrieving WSM information
                 float vehicleSpeed = wsm->getSenderSpeedRLDCO();
@@ -108,6 +117,8 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
                 int timeToReach = wsm->getTimeToReach();
                 int dwellStart = messageTime + timeToReach;
                 int dwellEnd = dwellStart + dwellTime;
+
+
 
                 std::tuple<int, double, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd );
                 edge.msgRegistry[myId][vehicleID] = vehicleData;
@@ -175,7 +186,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         wsm->setSenderAddress(myId);
         wsm->setSenderPositionRLDCO(baseMob->getPositionAt(simTime().dbl()));
         wsm->setHopCountRLDCO(0);
-        sendDown(wsm);
+        sendDelayedDown(wsm, uniform(1,3));
 
         if(simTime().dbl() < 100)
         scheduleAt(simTime() + 5, msg);
@@ -191,14 +202,14 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         if( simulationTime > 149 &&  simulationTime % 50 == 0 && simulationTime != 1000){
 
             if(simulationTime == 150){
-                alpha[11] = 1;
-                alpha[16] = 1;
-                alpha[21] = 1;
+                alpha[11] = 1.0;
+                alpha[16] = 1.0;
+                alpha[21] = 1.0;
             }
 
-            else{
-                updateAlpha(myId, simulationTime-50);
-            }
+            //else{
+            //    updateAlpha(myId, simulationTime-50);
+            //}
 
             double appStart = simulationTime + 25;
             int executionTime = 5;
@@ -217,7 +228,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 }
 
             }
-
 
             // Logging predictions
             predictLog.open("results/predictions_random_25_05.csv",  ios::out | ios::app);
@@ -299,6 +309,16 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
 void TraCIDemoRSU11p:: onBSM(DemoSafetyMessage* bsm)
 {
+
+}
+
+void TraCIDemoRSU11p::finish()
+{
+    DemoBaseApplLayer::finish();
+    if(simTime().dbl() == 1000){
+        std::cout << "In Range Received: " << inRangeMsgRcv << endl;
+        std::cout << "WSM Received: " << wsmReceived << endl;
+    }
 
 }
 

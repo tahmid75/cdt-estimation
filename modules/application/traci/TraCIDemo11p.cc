@@ -35,11 +35,14 @@ using namespace veins;
 
 
 Define_Module(veins::TraCIDemo11p);
+TraCICommandInterface* traci;
 
 
 Registry registry;
 int NodeRange = 1000;
 int inRangeMsgSent = 0;
+int wsmSent = 0;
+int hop = 3;
 
 
 double linearDistance(Coord& a,  Coord& b) {
@@ -243,9 +246,6 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
         // Removing last data
         int size = registry.vehicleRegistry[vehicleID].size();
 
-        if( size > 15){
-            registry.vehicleRegistry[vehicleID].pop_back();
-        }
 
         if(size > 4){ // If we have at least 5 historic data points to work with
 
@@ -316,7 +316,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                             Coord next = get<0>(registry.vehicleRegistry[vehicleID][j+1]);
 
                             if(j < size-1){
-                               std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                               std::vector<double> xTrain = {traci->getDistance(current, next,true), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
                                 X.push_back(xTrain);
                                 Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
                             }
@@ -327,7 +327,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         mlr.fit();
 
                         double averageSpeed = totalSpeed/count;
-                        double dwellDistance = linearDistance(vehicleCoord, exit);
+                        double dwellDistanceLinear = linearDistance(vehicleCoord, exit);
+                        double dwellDistance = traci->getDistance(vehicleCoord, exit, true);
+
+                        int dwellTimeLinear = mlr.predict({dwellDistanceLinear, averageSpeed});
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
 
@@ -344,7 +347,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         wsm->setDwellDistance(dwellDistance);
                         wsm->setDwellTime(dwellTime);
                         wsm->setHopCountRLDCO(0);
-                        sendDown(wsm);
+                        sendDelayedDown(wsm, uniform(0.001,1.0));
+                        wsmSent++;
 
                     }
 
@@ -359,7 +363,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                     if(initDist.length() > currentDist.length()){ // vehicle moving towards the RSU
 
-                        if(currentDist.length() < NodeRange*4){
+                        if(currentDist.length() < NodeRange* hop){
 
                             auto cp = std::make_pair(rsu.second.x, rsu.second.y);
 
@@ -419,7 +423,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     Coord next = get<0>(registry.vehicleRegistry[vehicleID][j+1]);
 
                                     if(j < size-1){
-                                       std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                                       std::vector<double> xTrain = {traci->getDistance(current, next, true), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
                                         X.push_back(xTrain);
                                         Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
                                     }
@@ -430,11 +434,44 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 mlr.fit();
 
                                 double averageSpeed = totalSpeed/count;
-                                double entryDistance = linearDistance(vehicleCoord, entry);
-                                double dwellDistance = linearDistance(entry, exit);
+
+                                double entryDistanceLinear = linearDistance(vehicleCoord, entry);
+                                double entryDistance = traci->getDistance(vehicleCoord, entry, true);
+
+                                double dwellDistanceLinear = linearDistance(entry, exit);
+                                double dwellDistance = traci->getDistance(entry, exit, true);
+
+                                int timeToReachLinear = mlr.predict({ entryDistanceLinear, averageSpeed  });
                                 int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
+
+                                int dwellTimeLinear = mlr.predict({dwellDistanceLinear, averageSpeed});
                                 int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
+
+                                /*double drivingDistance;
+                                std::cout<< "Calculating driving distance: " <<endl;
+                                try{
+                                   drivingDistance = traci->getDistance(entry, exit, true);
+                                }
+                                catch (const std::exception &exc)
+                                {
+                                    // catch anything thrown within try block that derives from std::exception
+                                    std::cerr << exc.what();
+                                }
+
+                                //std::cout<< entryDistanceLinear << endl;
+                                //std::cout << timeToReachLinear << endl;
+
+                                std::cout<< entryDistance << endl;
+                                std::cout << timeToReach << endl;
+
+                                std::cout<< dwellDistanceLinear << endl;
+                                std::cout<< dwellTimeLinear << endl;
+
+                                std::cout<< dwellDistance << endl;
+                                std::cout<< dwellTime << endl;
+                                std::cout << "---------------" << endl;
+                                */
 
                                 // Sending a WSM Message to the nextRSU
                                 TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
@@ -453,7 +490,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setDwellDistance(dwellDistance);
                                 wsm->setDwellTime(dwellTime);
                                 wsm->setHopCountRLDCO(0);
-                                sendDown(wsm);
+                                sendDelayedDown(wsm, uniform(0.1,1.0));
+                                wsmSent++;
 
                             } // If intersects
 
@@ -465,7 +503,11 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
             } // For each known rsu
 
-        } // if size > 2
+            if( size > 15){
+               registry.vehicleRegistry[vehicleID].pop_back();
+            }
+
+        } // if size > 4
 
     } // at specific simtime
 
@@ -492,14 +534,15 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
         // If wsm from another car
         if(  wsm->getSenderType() == 1){
 
-            if(wsm->getHopCountRLDCO() < 4){
+            if(wsm->getHopCountRLDCO() < hop){
 
                 Coord vehicleCoord = wsm->getSenderPositionRLDCO();
                 int vehicleID = wsm->getSenderAddress();
                 float vehicleSpeed = wsm->getSenderSpeedRLDCO();
 
                 wsm->setHopCountRLDCO(hopCount+1);
-                sendDelayedDown(wsm->dup(), uniform(1,2));
+                sendDelayedDown(wsm->dup(), uniform(.01,0.09));
+
             }
 
         }
@@ -528,9 +571,7 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                   wsm->setHopCountRLDCO(99);
                   wsm->setInRange(true);
                   sendDown(wsm);
-
                   */
-
             }
 
             else{ // may not be in range.
@@ -543,14 +584,12 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                     registry.rsuRegistry[rsuID] = rsuCoord ;
                 }
 
-                if(wsm->getHopCountRLDCO() < 4){
+                if(wsm->getHopCountRLDCO() < hop){
                     wsm->setHopCountRLDCO(hopCount+1);
-                    sendDelayedDown(wsm->dup(), uniform(1,2)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
+                    sendDelayedDown(wsm->dup(), uniform(0.01,.09)); // waits delay seconds before sending ? this avoids packet collision. uniform creates a random delay
                 }
             }
-
         }
-
     }
 
 
@@ -588,17 +627,15 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   wsm->setTargetAddress(rsu.first);
                   wsm->setHopCountRLDCO(99);
                   wsm->setInRange(true);
-                  sendDown(wsm);
+                  sendDelayedDown(wsm, uniform(0.1,3.0));
 
-                  std::cout << "In Range of: "<< rsu.first << ". Vehicle ID: " << vehicleID<<endl;
                   inRangeMsgSent++;
+                  wsmSent++;
 
                   // Logging locations
                   vehicleLog.open("results/vehicleLog_random_25_05.csv",  ios::out | ios::app);
                   vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
                   vehicleLog.close();
-
-                  //std::cout<< "Logged";
 
                 }
             }
@@ -617,7 +654,8 @@ void TraCIDemo11p::finish()
     //std::cout << simTime().dbl() << endl ;
 
     if(simTime().dbl() == 1000){
-        std::cout << "Message Sent: " << inRangeMsgSent << endl;
+        std::cout << "In range Message Sent: " << inRangeMsgSent << endl;
+        std::cout << "WSM Sent: " << wsmSent << endl;
         /*
         LinearRegression mlr({
             {13828.2,20908.8, 10.94},
@@ -638,6 +676,8 @@ void TraCIDemo11p::finish()
         {
             std::cout << x.first << ':' << x.second << std::endl ;
         }*/
+
+
 
     }
 
