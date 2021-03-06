@@ -48,15 +48,21 @@ namespace veins {
  *     Coord senderPositionRLDCO;
  *     int hopCountRLDCO;
  *     int SenderType;
+ * 
  *     int TargetAddress;
+ *     Coord TargetCoord;
+ * 
  *     Coord EntryCoord;
  *     Coord ExitCoord;
+ * 
  *     double SenderVelocity;
  *     double AverageSpeed;
  *     int MessageTime;
  *     int TimeToReach;
  *     int DwellTime;
  *     double DwellDistance;
+ *     string NeighborChain;
+ * 
  * 
  * 
  *     // RSU sends wsm to vehicles in range
@@ -76,6 +82,7 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     int hopCountRLDCO;
     int SenderType;
     int TargetAddress;
+    Coord TargetCoord;
     Coord EntryCoord;
     Coord ExitCoord;
     double SenderVelocity;
@@ -84,6 +91,7 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     int TimeToReach;
     int DwellTime;
     double DwellDistance;
+    ::omnetpp::opp_string NeighborChain;
     bool InRange;
 
   private:
@@ -119,6 +127,9 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     virtual void setSenderType(int SenderType);
     virtual int getTargetAddress() const;
     virtual void setTargetAddress(int TargetAddress);
+    virtual Coord& getTargetCoord();
+    virtual const Coord& getTargetCoord() const {return const_cast<TraCIDemo11pMessage*>(this)->getTargetCoord();}
+    virtual void setTargetCoord(const Coord& TargetCoord);
     virtual Coord& getEntryCoord();
     virtual const Coord& getEntryCoord() const {return const_cast<TraCIDemo11pMessage*>(this)->getEntryCoord();}
     virtual void setEntryCoord(const Coord& EntryCoord);
@@ -137,6 +148,8 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     virtual void setDwellTime(int DwellTime);
     virtual double getDwellDistance() const;
     virtual void setDwellDistance(double DwellDistance);
+    virtual const char * getNeighborChain() const;
+    virtual void setNeighborChain(const char * NeighborChain);
     virtual bool getInRange() const;
     virtual void setInRange(bool InRange);
 };

@@ -105,7 +105,7 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
             int lastKnown = get<0>(edge.msgRegistry[myId][vehicleID]);
 
             // is this a new message
-            if(lastKnown != messageTime && lastKnown < messageTime && distance(vehicleCoord, rsuCoord) < rsuRange * rangeThreshold ){
+            if(lastKnown != messageTime && lastKnown < messageTime ){
 
                 wsmReceived++;
 
@@ -117,8 +117,6 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
                 int timeToReach = wsm->getTimeToReach();
                 int dwellStart = messageTime + timeToReach;
                 int dwellEnd = dwellStart + dwellTime;
-
-
 
                 std::tuple<int, double, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd );
                 edge.msgRegistry[myId][vehicleID] = vehicleData;
@@ -249,7 +247,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         if( simulationTime % 51 == 0 &&  simulationTime != 1000 && simulationTime > 200){
 
-            int nVc = 8;
+            int nVc = 10;
             int dwellTime;
 
             for(dwellTime = 0; dwellTime < 1000 - simulationTime; dwellTime++ ){

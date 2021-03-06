@@ -40,15 +40,21 @@ packet TraCIDemo11pMessage extends BaseFrame1609_4 {
     Coord senderPositionRLDCO;
     int hopCountRLDCO;
     int SenderType;
+    
     int TargetAddress;
+    Coord TargetCoord; 
+    
     Coord EntryCoord;
     Coord ExitCoord;
+    
     double SenderVelocity;
     double AverageSpeed;
     int MessageTime; 
     int TimeToReach;
     int DwellTime;
-    double DwellDistance; 
+    double DwellDistance;
+    string NeighborChain; 
+    
     
     
     // RSU sends wsm to vehicles in range

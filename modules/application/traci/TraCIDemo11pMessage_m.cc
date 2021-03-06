@@ -223,6 +223,7 @@ void TraCIDemo11pMessage::copy(const TraCIDemo11pMessage& other)
     this->hopCountRLDCO = other.hopCountRLDCO;
     this->SenderType = other.SenderType;
     this->TargetAddress = other.TargetAddress;
+    this->TargetCoord = other.TargetCoord;
     this->EntryCoord = other.EntryCoord;
     this->ExitCoord = other.ExitCoord;
     this->SenderVelocity = other.SenderVelocity;
@@ -231,6 +232,7 @@ void TraCIDemo11pMessage::copy(const TraCIDemo11pMessage& other)
     this->TimeToReach = other.TimeToReach;
     this->DwellTime = other.DwellTime;
     this->DwellDistance = other.DwellDistance;
+    this->NeighborChain = other.NeighborChain;
     this->InRange = other.InRange;
 }
 
@@ -244,6 +246,7 @@ void TraCIDemo11pMessage::parsimPack(omnetpp::cCommBuffer *b) const
     doParsimPacking(b,this->hopCountRLDCO);
     doParsimPacking(b,this->SenderType);
     doParsimPacking(b,this->TargetAddress);
+    doParsimPacking(b,this->TargetCoord);
     doParsimPacking(b,this->EntryCoord);
     doParsimPacking(b,this->ExitCoord);
     doParsimPacking(b,this->SenderVelocity);
@@ -252,6 +255,7 @@ void TraCIDemo11pMessage::parsimPack(omnetpp::cCommBuffer *b) const
     doParsimPacking(b,this->TimeToReach);
     doParsimPacking(b,this->DwellTime);
     doParsimPacking(b,this->DwellDistance);
+    doParsimPacking(b,this->NeighborChain);
     doParsimPacking(b,this->InRange);
 }
 
@@ -265,6 +269,7 @@ void TraCIDemo11pMessage::parsimUnpack(omnetpp::cCommBuffer *b)
     doParsimUnpacking(b,this->hopCountRLDCO);
     doParsimUnpacking(b,this->SenderType);
     doParsimUnpacking(b,this->TargetAddress);
+    doParsimUnpacking(b,this->TargetCoord);
     doParsimUnpacking(b,this->EntryCoord);
     doParsimUnpacking(b,this->ExitCoord);
     doParsimUnpacking(b,this->SenderVelocity);
@@ -273,6 +278,7 @@ void TraCIDemo11pMessage::parsimUnpack(omnetpp::cCommBuffer *b)
     doParsimUnpacking(b,this->TimeToReach);
     doParsimUnpacking(b,this->DwellTime);
     doParsimUnpacking(b,this->DwellDistance);
+    doParsimUnpacking(b,this->NeighborChain);
     doParsimUnpacking(b,this->InRange);
 }
 
@@ -344,6 +350,16 @@ int TraCIDemo11pMessage::getTargetAddress() const
 void TraCIDemo11pMessage::setTargetAddress(int TargetAddress)
 {
     this->TargetAddress = TargetAddress;
+}
+
+Coord& TraCIDemo11pMessage::getTargetCoord()
+{
+    return this->TargetCoord;
+}
+
+void TraCIDemo11pMessage::setTargetCoord(const Coord& TargetCoord)
+{
+    this->TargetCoord = TargetCoord;
 }
 
 Coord& TraCIDemo11pMessage::getEntryCoord()
@@ -426,6 +442,16 @@ void TraCIDemo11pMessage::setDwellDistance(double DwellDistance)
     this->DwellDistance = DwellDistance;
 }
 
+const char * TraCIDemo11pMessage::getNeighborChain() const
+{
+    return this->NeighborChain.c_str();
+}
+
+void TraCIDemo11pMessage::setNeighborChain(const char * NeighborChain)
+{
+    this->NeighborChain = NeighborChain;
+}
+
 bool TraCIDemo11pMessage::getInRange() const
 {
     return this->InRange;
@@ -501,7 +527,7 @@ const char *TraCIDemo11pMessageDescriptor::getProperty(const char *propertyname)
 int TraCIDemo11pMessageDescriptor::getFieldCount() const
 {
     omnetpp::cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 16+basedesc->getFieldCount() : 16;
+    return basedesc ? 18+basedesc->getFieldCount() : 18;
 }
 
 unsigned int TraCIDemo11pMessageDescriptor::getFieldTypeFlags(int field) const
@@ -522,6 +548,8 @@ unsigned int TraCIDemo11pMessageDescriptor::getFieldTypeFlags(int field) const
         FD_ISEDITABLE,
         FD_ISCOMPOUND,
         FD_ISCOMPOUND,
+        FD_ISCOMPOUND,
+        FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
@@ -530,7 +558,7 @@ unsigned int TraCIDemo11pMessageDescriptor::getFieldTypeFlags(int field) const
         FD_ISEDITABLE,
         FD_ISEDITABLE,
     };
-    return (field>=0 && field<16) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<18) ? fieldTypeFlags[field] : 0;
 }
 
 const char *TraCIDemo11pMessageDescriptor::getFieldName(int field) const
@@ -549,6 +577,7 @@ const char *TraCIDemo11pMessageDescriptor::getFieldName(int field) const
         "hopCountRLDCO",
         "SenderType",
         "TargetAddress",
+        "TargetCoord",
         "EntryCoord",
         "ExitCoord",
         "SenderVelocity",
@@ -557,9 +586,10 @@ const char *TraCIDemo11pMessageDescriptor::getFieldName(int field) const
         "TimeToReach",
         "DwellTime",
         "DwellDistance",
+        "NeighborChain",
         "InRange",
     };
-    return (field>=0 && field<16) ? fieldNames[field] : nullptr;
+    return (field>=0 && field<18) ? fieldNames[field] : nullptr;
 }
 
 int TraCIDemo11pMessageDescriptor::findField(const char *fieldName) const
@@ -573,15 +603,17 @@ int TraCIDemo11pMessageDescriptor::findField(const char *fieldName) const
     if (fieldName[0]=='h' && strcmp(fieldName, "hopCountRLDCO")==0) return base+4;
     if (fieldName[0]=='S' && strcmp(fieldName, "SenderType")==0) return base+5;
     if (fieldName[0]=='T' && strcmp(fieldName, "TargetAddress")==0) return base+6;
-    if (fieldName[0]=='E' && strcmp(fieldName, "EntryCoord")==0) return base+7;
-    if (fieldName[0]=='E' && strcmp(fieldName, "ExitCoord")==0) return base+8;
-    if (fieldName[0]=='S' && strcmp(fieldName, "SenderVelocity")==0) return base+9;
-    if (fieldName[0]=='A' && strcmp(fieldName, "AverageSpeed")==0) return base+10;
-    if (fieldName[0]=='M' && strcmp(fieldName, "MessageTime")==0) return base+11;
-    if (fieldName[0]=='T' && strcmp(fieldName, "TimeToReach")==0) return base+12;
-    if (fieldName[0]=='D' && strcmp(fieldName, "DwellTime")==0) return base+13;
-    if (fieldName[0]=='D' && strcmp(fieldName, "DwellDistance")==0) return base+14;
-    if (fieldName[0]=='I' && strcmp(fieldName, "InRange")==0) return base+15;
+    if (fieldName[0]=='T' && strcmp(fieldName, "TargetCoord")==0) return base+7;
+    if (fieldName[0]=='E' && strcmp(fieldName, "EntryCoord")==0) return base+8;
+    if (fieldName[0]=='E' && strcmp(fieldName, "ExitCoord")==0) return base+9;
+    if (fieldName[0]=='S' && strcmp(fieldName, "SenderVelocity")==0) return base+10;
+    if (fieldName[0]=='A' && strcmp(fieldName, "AverageSpeed")==0) return base+11;
+    if (fieldName[0]=='M' && strcmp(fieldName, "MessageTime")==0) return base+12;
+    if (fieldName[0]=='T' && strcmp(fieldName, "TimeToReach")==0) return base+13;
+    if (fieldName[0]=='D' && strcmp(fieldName, "DwellTime")==0) return base+14;
+    if (fieldName[0]=='D' && strcmp(fieldName, "DwellDistance")==0) return base+15;
+    if (fieldName[0]=='N' && strcmp(fieldName, "NeighborChain")==0) return base+16;
+    if (fieldName[0]=='I' && strcmp(fieldName, "InRange")==0) return base+17;
     return basedesc ? basedesc->findField(fieldName) : -1;
 }
 
@@ -603,15 +635,17 @@ const char *TraCIDemo11pMessageDescriptor::getFieldTypeString(int field) const
         "int",
         "Coord",
         "Coord",
+        "Coord",
         "double",
         "double",
         "int",
         "int",
         "int",
         "double",
+        "string",
         "bool",
     };
-    return (field>=0 && field<16) ? fieldTypeStrings[field] : nullptr;
+    return (field>=0 && field<18) ? fieldTypeStrings[field] : nullptr;
 }
 
 const char **TraCIDemo11pMessageDescriptor::getFieldPropertyNames(int field) const
@@ -685,15 +719,17 @@ std::string TraCIDemo11pMessageDescriptor::getFieldValueAsString(void *object, i
         case 4: return long2string(pp->getHopCountRLDCO());
         case 5: return long2string(pp->getSenderType());
         case 6: return long2string(pp->getTargetAddress());
-        case 7: {std::stringstream out; out << pp->getEntryCoord(); return out.str();}
-        case 8: {std::stringstream out; out << pp->getExitCoord(); return out.str();}
-        case 9: return double2string(pp->getSenderVelocity());
-        case 10: return double2string(pp->getAverageSpeed());
-        case 11: return long2string(pp->getMessageTime());
-        case 12: return long2string(pp->getTimeToReach());
-        case 13: return long2string(pp->getDwellTime());
-        case 14: return double2string(pp->getDwellDistance());
-        case 15: return bool2string(pp->getInRange());
+        case 7: {std::stringstream out; out << pp->getTargetCoord(); return out.str();}
+        case 8: {std::stringstream out; out << pp->getEntryCoord(); return out.str();}
+        case 9: {std::stringstream out; out << pp->getExitCoord(); return out.str();}
+        case 10: return double2string(pp->getSenderVelocity());
+        case 11: return double2string(pp->getAverageSpeed());
+        case 12: return long2string(pp->getMessageTime());
+        case 13: return long2string(pp->getTimeToReach());
+        case 14: return long2string(pp->getDwellTime());
+        case 15: return double2string(pp->getDwellDistance());
+        case 16: return oppstring2string(pp->getNeighborChain());
+        case 17: return bool2string(pp->getInRange());
         default: return "";
     }
 }
@@ -713,13 +749,14 @@ bool TraCIDemo11pMessageDescriptor::setFieldValueAsString(void *object, int fiel
         case 4: pp->setHopCountRLDCO(string2long(value)); return true;
         case 5: pp->setSenderType(string2long(value)); return true;
         case 6: pp->setTargetAddress(string2long(value)); return true;
-        case 9: pp->setSenderVelocity(string2double(value)); return true;
-        case 10: pp->setAverageSpeed(string2double(value)); return true;
-        case 11: pp->setMessageTime(string2long(value)); return true;
-        case 12: pp->setTimeToReach(string2long(value)); return true;
-        case 13: pp->setDwellTime(string2long(value)); return true;
-        case 14: pp->setDwellDistance(string2double(value)); return true;
-        case 15: pp->setInRange(string2bool(value)); return true;
+        case 10: pp->setSenderVelocity(string2double(value)); return true;
+        case 11: pp->setAverageSpeed(string2double(value)); return true;
+        case 12: pp->setMessageTime(string2long(value)); return true;
+        case 13: pp->setTimeToReach(string2long(value)); return true;
+        case 14: pp->setDwellTime(string2long(value)); return true;
+        case 15: pp->setDwellDistance(string2double(value)); return true;
+        case 16: pp->setNeighborChain((value)); return true;
+        case 17: pp->setInRange(string2bool(value)); return true;
         default: return false;
     }
 }
@@ -737,6 +774,7 @@ const char *TraCIDemo11pMessageDescriptor::getFieldStructName(int field) const
         case 3: return omnetpp::opp_typename(typeid(Coord));
         case 7: return omnetpp::opp_typename(typeid(Coord));
         case 8: return omnetpp::opp_typename(typeid(Coord));
+        case 9: return omnetpp::opp_typename(typeid(Coord));
         default: return nullptr;
     };
 }
@@ -753,8 +791,9 @@ void *TraCIDemo11pMessageDescriptor::getFieldStructValuePointer(void *object, in
     switch (field) {
         case 0: return (void *)(&pp->getSenderAddress()); break;
         case 3: return (void *)(&pp->getSenderPositionRLDCO()); break;
-        case 7: return (void *)(&pp->getEntryCoord()); break;
-        case 8: return (void *)(&pp->getExitCoord()); break;
+        case 7: return (void *)(&pp->getTargetCoord()); break;
+        case 8: return (void *)(&pp->getEntryCoord()); break;
+        case 9: return (void *)(&pp->getExitCoord()); break;
         default: return nullptr;
     }
 }
