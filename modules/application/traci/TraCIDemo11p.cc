@@ -37,14 +37,14 @@ using namespace veins;
 
 Define_Module(veins::TraCIDemo11p);
 TraCICommandInterface* traci;
-
+TraCIScenarioManager* scenario;
 
 Registry registry;
-int NodeRange = 1000;
+int NodeRange = 800;
 int inRangeMsgSent = 0;
 int wsmSent = 0;
-int hop = 3;
-
+int hop = 4;
+int numVehicles = 2000;
 
 double linearDistance(Coord& a,  Coord& b) {
     Coord dist(a - b);
@@ -140,6 +140,8 @@ std::vector<Point> intersects(const Point &p1, const Point &p2, const Point &cp,
 
     };
 
+    
+
     double x, y;
     if (d == 0.0) {
         // line is tangent to circle, so just one intersect at most
@@ -230,7 +232,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
     if(((int) simTime().dbl()) % (rand() % 6 + 13) == 0 ){
 
-    //if(((int) simTime().dbl()) % 15 == 0 ){
+    //if(((int) simTime().dbl()) % 60 == 0 ){
 
         // Getting vehicle data
 
@@ -248,7 +250,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
         int size = registry.vehicleRegistry[vehicleID].size();
 
 
-        if(size > 4){ // If we have at least 5 historic data points to work with
+        if(size > 3){ // If we have at least 5 historic data points to work with
 
             // Checking if path crosses any RSU range in any way
             for (auto const& rsu : registry.rsuRegistry)
@@ -260,6 +262,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                     //
                     // Finding the exit point.
                     //
+
+                    //std::cout << "vehicle in range" << endl;
 
                     Coord oldest = get<0>(registry.vehicleRegistry[vehicleID][size-1]) ;
                     auto cp = std::make_pair(rsu.second.x, rsu.second.y);
@@ -318,6 +322,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                             if(j < size-1){
                                std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                               //std::vector<double> xTrain = {traci->getDistance(current, next, true), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
                                 X.push_back(xTrain);
                                 Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
                             }
@@ -328,10 +333,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         mlr.fit();
 
                         double averageSpeed = totalSpeed/count;
-                        double dwellDistanceLinear = linearDistance(vehicleCoord, exit);
-                        double dwellDistance = traci->getDistance(vehicleCoord, exit, true);
+                        double dwellDistance = linearDistance(vehicleCoord, exit);
+                        //double dwellDistance = traci->getDistance(vehicleCoord, exit, true);
 
-                        int dwellTimeLinear = mlr.predict({dwellDistanceLinear, averageSpeed});
+
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
 
@@ -348,8 +353,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         wsm->setDwellDistance(dwellDistance);
                         wsm->setDwellTime(dwellTime);
                         wsm->setHopCountRLDCO(99);
-                       // sendDelayedDown(wsm, uniform(0.1,1.0));
-                        //wsmSent++;
+                        sendDelayedDown(wsm, uniform(0.01,1.0));
+                        wsmSent++;
 
                     }
 
@@ -424,7 +429,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     Coord next = get<0>(registry.vehicleRegistry[vehicleID][j+1]);
 
                                     if(j < size-1){
-                                       std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                                        std::vector<double> xTrain = {linearDistance(current, next), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
+                                        //std::vector<double> xTrain = {traci->getDistance(current, next,true), (get<1>(registry.vehicleRegistry[vehicleID][j]) + get<1>(registry.vehicleRegistry[vehicleID][j+1])) / 2 };
                                         X.push_back(xTrain);
                                         Y.push_back(get<2>(registry.vehicleRegistry[vehicleID][j]) - get<2>(registry.vehicleRegistry[vehicleID][j+1]));
                                     }
@@ -436,16 +442,13 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                                 double averageSpeed = totalSpeed/count;
 
-                                double entryDistanceLinear = linearDistance(vehicleCoord, entry);
-                                double entryDistance = traci->getDistance(vehicleCoord, entry, true);
+                                double entryDistance = linearDistance(vehicleCoord, entry);
+                                //double entryDistance = traci->getDistance(vehicleCoord, entry, true);
 
-                                double dwellDistanceLinear = linearDistance(entry, exit);
-                                double dwellDistance = traci->getDistance(entry, exit, true);
+                                double dwellDistance = linearDistance(entry, exit);
+                                //double dwellDistance = traci->getDistance(entry, exit, true);
 
-                                int timeToReachLinear = mlr.predict({ entryDistanceLinear, averageSpeed  });
                                 int timeToReach = mlr.predict({ entryDistance, averageSpeed  });
-
-                                int dwellTimeLinear = mlr.predict({dwellDistanceLinear, averageSpeed});
                                 int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
 
@@ -459,20 +462,20 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     // catch anything thrown within try block that derives from std::exception
                                     std::cerr << exc.what();
                                 }
-
-                                //std::cout<< entryDistanceLinear << endl;
-                                //std::cout << timeToReachLinear << endl;
-
-                                std::cout<< entryDistance << endl;
-                                std::cout << timeToReach << endl;
-
-                                std::cout<< dwellDistanceLinear << endl;
-                                std::cout<< dwellTimeLinear << endl;
-
-                                std::cout<< dwellDistance << endl;
-                                std::cout<< dwellTime << endl;
-                                std::cout << "---------------" << endl;
                                 */
+
+
+                                /*
+                                std::cout<< averageSpeed << endl;
+                                std::cout<< "Entry Distance: " << entryDistance << endl;
+                                std::cout << "Time to Reach: " <<  timeToReach << endl;
+
+
+                                std::cout<<  "Dwell Distance: " << dwellDistance << endl;
+                                std::cout<< "Dwell time: " <<  dwellTime << endl;
+                                std::cout << "-----------------" << endl;
+                                */
+
 
                                 // Sending a WSM Message to the nextRSU
                                 TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
@@ -493,8 +496,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setDwellDistance(dwellDistance);
                                 wsm->setDwellTime(dwellTime);
                                 wsm->setHopCountRLDCO(0);
-                                //sendDelayedDown(wsm, uniform(0.1,1.0));
-                                //wsmSent++;
+                                sendDelayedDown(wsm, uniform(0.01,0.09));
+                                wsmSent++;
+                                //std::cout<< "WSM Sent" << endl;
+                                //std::cout<< "-------------------------" << endl;
 
                             } // If intersects
 
@@ -544,19 +549,20 @@ void TraCIDemo11p::onWSM(BaseFrame1609_4* frame)
                 Coord vehicleCoord = mobility->getPositionAt(simTime().dbl());
                 //int vehicleID = wsm->getSenderAddress();
                 //float vehicleSpeed = wsm->getSenderSpeedRLDCO();
-                if(linearDistance(vehicleCoord, targetCoord ) < linearDistance(senderCoord, targetCoord)){
+                //if(linearDistance(vehicleCoord, targetCoord ) < linearDistance(senderCoord, targetCoord)){
+                if(true){
                     string currentChain = wsm->getNeighborChain();
                     string s = std::to_string(mobility->getId());
                     if(currentChain.find(s) != string::npos){
                         string newChain = currentChain +','+ s;
                         wsm->setNeighborChain(newChain.c_str());
                         wsm->setHopCountRLDCO(hopCount+1);
-                        sendDelayedDown(wsm->dup(), uniform(.01,0.9));
-                        std::cout << "Flooding this" << endl ;
+                        sendDelayedDown(wsm->dup(), uniform(.01,0.09));
+                        //std::cout << "Flooding this" << endl ;
                     }
 
                     else{
-                       // std::cout << "Already flooded this wsm" << endl ;
+                        //std::cout << "Already flooded this wsm" << endl ;
                     }
 
                 }
@@ -631,13 +637,14 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
 
         if(simulationTime > 149){
 
+
             for (auto const& rsu : registry.rsuRegistry)
             {
                 Coord currentDist(rsu.second - vehicleCoord);
 
                 if(currentDist.length() < NodeRange){
                   // Sending a WSM Message to the current rsu
-                  TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
+                  /*TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
                   populateWSM(wsm);
                   wsm->setSenderType(1);
                   wsm->setSenderAddress(vehicleID);
@@ -645,27 +652,26 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   wsm->setTargetAddress(rsu.first);
                   wsm->setHopCountRLDCO(99);
                   wsm->setInRange(true);
-                  sendDelayedDown(wsm, uniform(0.01, 6.0));
-
-                  inRangeMsgSent++;
-                  wsmSent++;
+                  sendDelayedDown(wsm, uniform(0.01, 1.0));
+                   */
+                  //inRangeMsgSent++;
+                  //wsmSent++;
 
                   // Logging locations
-                  vehicleLog.open("results/vehicleLog_random_25_05.csv",  ios::out | ios::app);
+                  vehicleLog.open("results/vehicleLog_random_25_05_linear_2000.csv",  ios::out | ios::app);
                   vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
                   vehicleLog.close();
-
-                  //std::cout << "In Range" <<endl;
-                  //std::cout << currentDist.length() <<endl;
-                  //std::cout << "-----------------------" <<endl;
 
                   break;
 
                 }
+
+
             }
+
         }
 
-        scheduleAt(simTime() + 6, inRange);
+        scheduleAt(simTime() + 1, inRange);
 
     }
 
@@ -677,9 +683,9 @@ void TraCIDemo11p::finish()
 
     //std::cout << simTime().dbl() << endl ;
 
-    if(simTime().dbl() == 1000){
-        std::cout << "In range Message Sent: " << inRangeMsgSent << endl;
-        std::cout << "WSM Sent: " << wsmSent << endl;
+    if(simTime().dbl() == 1000 && myId == 2313){
+        //std::cout << "In range Message Sent: " << inRangeMsgSent << endl;
+        std::cout <<"WSM Sent: " << wsmSent << endl;
         /*
         LinearRegression mlr({
             {13828.2,20908.8, 10.94},

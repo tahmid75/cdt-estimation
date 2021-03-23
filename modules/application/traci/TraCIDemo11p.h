@@ -26,10 +26,12 @@
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/base/utils/Coord.h"
 #include "veins/modules/mobility/traci/TraCICommandInterface.h"
+#include "veins/modules/mobility/traci/TraCIScenarioManager.h"
 
 #include <fstream>
 
 using veins::TraCICommandInterface;
+using veins::TraCIScenarioManager;
 
 
 namespace veins {

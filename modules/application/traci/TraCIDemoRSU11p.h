@@ -39,6 +39,7 @@ using namespace omnetpp;
 using namespace std;
 
 #include "veins/modules/application/ieee80211p/DemoBaseApplLayer.h"
+#include "veins/modules/mobility/traci/TraCIScenarioManager.h"
 
 
 namespace veins {

@@ -28,6 +28,8 @@
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/modules/mobility/traci/TraCICommandInterface.h"
 
+
+
 #include<ctime>
 
 using namespace veins;
@@ -37,11 +39,12 @@ using namespace std;
 Define_Module(veins::TraCIDemoRSU11p);
 
 Registry edge;
-int rsuRange = 1000;
-int rangeThreshold = 3;
+int rsuRange = 800;
+int rangeThreshold = 5;
 std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
+int numberVehicles = 2000;
 
 
 double distance(Coord& a,  Coord& b) {
@@ -86,7 +89,7 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
         // Logging vehicle information that are already in range for analysis.
         if(wsm->getInRange() == true){
             //std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
-            inRangeMsgRcv++;
+            //inRangeMsgRcv++;
             wsmReceived++;
            // std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
             //std::cout << "---------------------------------"<< endl;
@@ -199,15 +202,8 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         if( simulationTime > 149 &&  simulationTime % 50 == 0 && simulationTime != 1000){
 
-            if(simulationTime == 150){
-                alpha[11] = 1.0;
-                alpha[16] = 1.0;
-                alpha[21] = 1.0;
-            }
 
-            //else{
-            //    updateAlpha(myId, simulationTime-50);
-            //}
+           // std::cout << "Application request at: " << simulationTime <<endl ;
 
             double appStart = simulationTime + 25;
             int executionTime = 5;
@@ -226,10 +222,14 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 }
 
             }
+            //std::cout << "Volume: " << volume <<endl ;
+           // std::cout << "Vehicle Count Through: " << vehicleCountThrough <<endl ;
+           // std::cout << "-----------------------" <<endl ;
+
 
             // Logging predictions
-            predictLog.open("results/predictions_random_25_05.csv",  ios::out | ios::app);
-            predictLog << myId << ", " << appStart << "," << appEnd << ","<< vehicleCountThrough * alpha[myId] << "\n";
+            predictLog.open("results/predictions_random_25_05_linear_2000.csv",  ios::out | ios::app);
+            predictLog << myId << ", " << appStart << "," << appEnd << ","<< vehicleCountThrough << "\n";
             predictLog.close();
 
 
@@ -247,7 +247,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         if( simulationTime % 51 == 0 &&  simulationTime != 1000 && simulationTime > 200){
 
-            int nVc = 10;
+            int nVc = 5;
             int dwellTime;
 
             for(dwellTime = 0; dwellTime < 1000 - simulationTime; dwellTime++ ){
@@ -259,7 +259,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                     if( (simulationTime + dwellTime) >= get<2>(vehicle.second) &&  (simulationTime + dwellTime) <= get<3>(vehicle.second) ){
                         vehicleCount++;
                     }
-
                 }
 
                 if(vehicleCount < nVc)
@@ -270,13 +269,15 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             //std::cout << "--------------------------" << endl ;
 
             // Logging predictions
-            predictLog.open("results/dwellTime_random_25_05.csv",  ios::out | ios::app);
-            predictLog << myId << ", " << simulationTime << "," << dwellTime* alpha[myId] << "\n";
+            predictLog.open("results/dwellTime_random_25_05_linear_2000.csv",  ios::out | ios::app);
+            predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
             predictLog.close();
 
             // Logging to RSU database
 
             //edge.dtPrediction[myId][simulationTime] = dwellTime;
+
+           // int vehicleCount = traci->get
 
 
         }
@@ -313,8 +314,8 @@ void TraCIDemoRSU11p:: onBSM(DemoSafetyMessage* bsm)
 void TraCIDemoRSU11p::finish()
 {
     DemoBaseApplLayer::finish();
-    if(simTime().dbl() == 1000){
-        std::cout << "In Range Received: " << inRangeMsgRcv << endl;
+    if(simTime().dbl() == 1000 && myId == 24){
+        //std::cout << "In Range Received: " << inRangeMsgRcv << endl;
         std::cout << "WSM Received: " << wsmReceived << endl;
     }
 
