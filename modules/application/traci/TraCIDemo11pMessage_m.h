@@ -48,6 +48,7 @@ namespace veins {
  *     Coord senderPositionRLDCO;
  *     int hopCountRLDCO;
  *     int SenderType;
+ *     int AvailableResource;
  * 
  *     int TargetAddress;
  *     Coord TargetCoord;
@@ -81,6 +82,7 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     Coord senderPositionRLDCO;
     int hopCountRLDCO;
     int SenderType;
+    int AvailableResource;
     int TargetAddress;
     Coord TargetCoord;
     Coord EntryCoord;
@@ -125,6 +127,8 @@ class VEINS_API TraCIDemo11pMessage : public ::veins::BaseFrame1609_4
     virtual void setHopCountRLDCO(int hopCountRLDCO);
     virtual int getSenderType() const;
     virtual void setSenderType(int SenderType);
+    virtual int getAvailableResource() const;
+    virtual void setAvailableResource(int AvailableResource);
     virtual int getTargetAddress() const;
     virtual void setTargetAddress(int TargetAddress);
     virtual Coord& getTargetCoord();

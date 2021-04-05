@@ -40,6 +40,7 @@ packet TraCIDemo11pMessage extends BaseFrame1609_4 {
     Coord senderPositionRLDCO;
     int hopCountRLDCO;
     int SenderType;
+    int AvailableResource; 
     
     int TargetAddress;
     Coord TargetCoord; 

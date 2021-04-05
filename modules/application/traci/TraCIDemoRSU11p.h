@@ -70,6 +70,7 @@ public:
     cMessage* broadcast_event;
     cMessage* vehicle_event;
     cMessage* dwellTime_event;
+    cMessage* traffic_flow_event;
 
 
     fstream predictLog;

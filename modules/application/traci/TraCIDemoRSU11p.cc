@@ -79,6 +79,19 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
     TraCIDemo11pMessage* wsm = check_and_cast<TraCIDemo11pMessage*>(frame);
 
 
+    if(wsm->getInRange() == true){
+        int vehicleID = wsm->getSenderAddress();
+        int messageTime = wsm->getMessageTime();
+        //std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
+        inRangeMsgRcv++;
+        //wsmReceived++;
+       // std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
+        //std::cout << "---------------------------------"<< endl;
+        edge.inRangeVehicle[myId][messageTime].insert(edge.inRangeVehicle[myId][messageTime].begin(), vehicleID);
+
+    }
+
+
     // If wsm is from vehicle and targeted to this RSU
     if(wsm->getSenderType() == 1 && wsm->getTargetAddress() == myId){
 
@@ -86,47 +99,45 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
         int vehicleID = wsm->getSenderAddress();
         int messageTime = wsm->getMessageTime();
 
-        // Logging vehicle information that are already in range for analysis.
-        if(wsm->getInRange() == true){
-            //std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
-            //inRangeMsgRcv++;
+
+        // Finding the RSU Co-ordinate.
+        BaseMobility *baseMob;
+        baseMob = FindModule<BaseMobility*>::findSubModule(getParentModule());
+        Coord rsuCoord = baseMob->getPositionAt(simTime().dbl());
+
+        Coord vehicleCoord = wsm->getSenderPositionRLDCO();
+        int lastKnown = get<0>(edge.msgRegistry[myId][vehicleID]);
+
+        // is this a new message
+        if(lastKnown != messageTime && lastKnown < messageTime ){
+
             wsmReceived++;
-           // std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
-            //std::cout << "---------------------------------"<< endl;
-            edge.inRangeVehicle[myId][messageTime].insert(edge.inRangeVehicle[myId][messageTime].begin(), vehicleID);
 
-        }
+            //Retrieving WSM information
+            float vehicleSpeed = wsm->getSenderSpeedRLDCO();
+            int hopCount = wsm->getHopCountRLDCO();
+            double dwellDistance = wsm->getDwellDistance();
+            int dwellTime = wsm->getDwellTime();
+            int timeToReach = wsm->getTimeToReach();
+            int dwellStart = messageTime + timeToReach;
+            int dwellEnd = dwellStart + dwellTime;
+            int availableResource = wsm->getAvailableResource();
 
-        else{
+            //Coord dist(vehicleCoord - rsuCoord);
+            //if(dist.length() > rsuRange){
+               // std::cout<< dist.length() << endl;
+               // std::cout<< "RSU Received this message" << endl;
+               // std::cout<< "Dwell Time: " << dwellTime << endl;
+               // std::cout<< "Time to Reach: " << timeToReach<< endl;
+               // std::cout<< "Dwell Start: " << dwellStart << endl;
+               // std::cout<< "Dwell End: " << dwellEnd << endl;
+                //std::cout << "---------------" << endl;
+           // }
 
-            // Finding the RSU Co-ordinate.
-            BaseMobility *baseMob;
-            baseMob = FindModule<BaseMobility*>::findSubModule(getParentModule());
-            Coord rsuCoord = baseMob->getPositionAt(simTime().dbl());
+            std::tuple<int, double, int, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd, availableResource );
+            edge.msgRegistry[myId][vehicleID] = vehicleData;
 
-            Coord vehicleCoord = wsm->getSenderPositionRLDCO();
-            int lastKnown = get<0>(edge.msgRegistry[myId][vehicleID]);
-
-            // is this a new message
-            if(lastKnown != messageTime && lastKnown < messageTime ){
-
-                wsmReceived++;
-
-                //Retrieving WSM information
-                float vehicleSpeed = wsm->getSenderSpeedRLDCO();
-                int hopCount = wsm->getHopCountRLDCO();
-                double dwellDistance = wsm->getDwellDistance();
-                int dwellTime = wsm->getDwellTime();
-                int timeToReach = wsm->getTimeToReach();
-                int dwellStart = messageTime + timeToReach;
-                int dwellEnd = dwellStart + dwellTime;
-
-                std::tuple<int, double, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd );
-                edge.msgRegistry[myId][vehicleID] = vehicleData;
-
-            } // message doesnt exists in database
-
-        } // targeted to this rsu
+        } // message doesnt exists in database
 
     }
 
@@ -152,6 +163,9 @@ void TraCIDemoRSU11p::initialize(int stage) {
 
         vehicle_event = new cMessage("vehicle_event");
         scheduleAt(simTime() + 1, vehicle_event);
+
+        traffic_flow_event = new cMessage("traffic_flow_event");
+        scheduleAt(simTime()+5, traffic_flow_event);
 
         stage++;
 
@@ -203,7 +217,17 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         if( simulationTime > 149 &&  simulationTime % 50 == 0 && simulationTime != 1000){
 
 
-           // std::cout << "Application request at: " << simulationTime <<endl ;
+            //std::cout << "Application request at: " << simulationTime <<endl ;
+
+            int resourcePool;
+           // Application --> resource, deadline
+            std::map<int, std::tuple<int,int>> applications;
+            int appCount = rand() % 10 + 0;
+
+            for(int i=0; i< appCount ; i++ ){
+               std::tuple<int, int> appData (rand() % 10 + 10, rand() % 10 + 10 );
+               applications[i] = appData;
+            }
 
             double appStart = simulationTime + 25;
             int executionTime = 5;
@@ -213,12 +237,13 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             int volume = 0;
 
             for (auto const& vehicle : edge.msgRegistry[myId]){
-                if(simulationTime >= get<2>(vehicle.second) && simulationTime <= get<3>(vehicle.second) ){
-                    volume++;
-                }
+                //if(simulationTime >= get<2>(vehicle.second) && simulationTime <= get<3>(vehicle.second) ){
+                  //  volume++;
+                //}
 
                 if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
                     vehicleCountThrough++;
+                    resourcePool = resourcePool + get<4>(vehicle.second);
                 }
 
             }
@@ -228,13 +253,13 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
 
             // Logging predictions
-            predictLog.open("results/predictions_random_25_05_linear_2000.csv",  ios::out | ios::app);
+            predictLog.open("results/predictions_random_25_05_linear_3000_2.csv",  ios::out | ios::app);
             predictLog << myId << ", " << appStart << "," << appEnd << ","<< vehicleCountThrough << "\n";
             predictLog.close();
 
 
             // Logging volume in rsu database
-            edge.predictedVolume[myId][simulationTime] = volume;
+            //edge.predictedVolume[myId][simulationTime] = volume;
 
         }
 
@@ -269,7 +294,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             //std::cout << "--------------------------" << endl ;
 
             // Logging predictions
-            predictLog.open("results/dwellTime_random_25_05_linear_2000.csv",  ios::out | ios::app);
+            predictLog.open("results/dwellTime_random_25_05_linear_3000_2.csv",  ios::out | ios::app);
             predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
             predictLog.close();
 
@@ -283,23 +308,55 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         }
 
         scheduleAt(simTime() + 1 , dwellTime_event);
-
-
-
     }
 
 
-    if(msg == vehicle_event){ // Check for vehicles in range
+    if(msg == traffic_flow_event && myId == 24){ //Estimating traffic flow
+
+        int simulationTime = (int) simTime().dbl();
 
         /*
-        TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
-        populateWSM(wsm);
-        wsm->setSenderType(0);
-        wsm->setInRange(true);
-        wsm->setSenderAddress(myId);
-        sendDown(wsm);
-        scheduleAt(simTime() + 1, vehicle_event);
+        std::cout<< "Traffic Flow Event at: " << myId << ". Simulation Time: " << simulationTime <<endl;
+        double actualVolume = edge.inRangeVehicle[myId][simulationTime].size();
+
+        int* a = &edge.inRangeVehicle[myId][simulationTime-4][0];
+
+        //for(int i=0; i < edge.inRangeVehicle[myId][simulationTime-4].size(); i++)
+         //   std::cout << a[i] << ' ';
+       // std::cout<< endl;
+
+        sort(edge.inRangeVehicle[myId][simulationTime-4].begin(), edge.inRangeVehicle[myId][simulationTime-4].end());
+        sort(edge.inRangeVehicle[myId][simulationTime-3].begin(), edge.inRangeVehicle[myId][simulationTime-3].end());
+        sort(edge.inRangeVehicle[myId][simulationTime-2].begin(), edge.inRangeVehicle[myId][simulationTime-2].end());
+        sort(edge.inRangeVehicle[myId][simulationTime-1].begin(), edge.inRangeVehicle[myId][simulationTime-1].end());
+
+        for(int i=0; i < edge.inRangeVehicle[myId][simulationTime-4].size(); i++)
+                    std::cout << edge.inRangeVehicle[myId][simulationTime-4].at(i) << ' ';
+
+        std::cout<< endl;
+
+        for(int i=0; i < edge.inRangeVehicle[myId][simulationTime-3].size(); i++)
+           std::cout << edge.inRangeVehicle[myId][simulationTime-3].at(i) << ' ';
+
+        std::cout<< endl;
+
+        for(int i=0; i < edge.inRangeVehicle[myId][simulationTime-2].size(); i++)
+           std::cout << edge.inRangeVehicle[myId][simulationTime-2].at(i) << ' ';
+
+        std::cout<< endl;
+
+        for(int i=0; i < edge.inRangeVehicle[myId][simulationTime-1].size(); i++)
+           std::cout << edge.inRangeVehicle[myId][simulationTime-1].at(i) << ' ';
+
+        std::cout<< endl;
+
+        std::cout<< edge.inRangeVehicle[myId][simulationTime-1].size() << endl;
+        std::cout<< edge.inRangeVehicle[myId][simulationTime-2].size() << endl;
+        std::cout<< "--------------" << endl;
+
+        scheduleAt(simTime() + 10, traffic_flow_event);
         */
+
 
     }
 
