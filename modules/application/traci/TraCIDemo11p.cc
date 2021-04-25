@@ -43,7 +43,7 @@ Registry registry;
 int NodeRange = 800;
 int inRangeMsgSent = 0;
 int wsmSent = 0;
-int hop = 4;
+int hop = 3;
 
 double linearDistance(Coord& a,  Coord& b) {
     Coord dist(a - b);

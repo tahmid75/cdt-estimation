@@ -40,7 +40,7 @@ Define_Module(veins::TraCIDemoRSU11p);
 
 Registry edge;
 int rsuRange = 800;
-int rangeThreshold = 5;
+int rangeThreshold = 3;
 std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
