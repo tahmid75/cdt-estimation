@@ -39,12 +39,12 @@ using namespace std;
 Define_Module(veins::TraCIDemoRSU11p);
 
 Registry edge;
-int rsuRange = 800;
-int rangeThreshold = 3;
+int rsuRange = 400;
+int rangeThreshold = 4;
 std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
-int numberVehicles = 2000;
+int numberVehicles = 3000;
 
 
 double distance(Coord& a,  Coord& b) {
@@ -237,9 +237,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             int volume = 0;
 
             for (auto const& vehicle : edge.msgRegistry[myId]){
-                //if(simulationTime >= get<2>(vehicle.second) && simulationTime <= get<3>(vehicle.second) ){
-                  //  volume++;
-                //}
 
                 if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
                     vehicleCountThrough++;
@@ -247,15 +244,32 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 }
 
             }
+
+            int lowest = 9999;
+            int disrupted = 0;
+
+            for (int j = appStart ; j <= appEnd ; j++){
+                int currentTotal = 0;
+                for (auto const& vehicle : edge.msgRegistry[myId]){
+                    if(j >= get<2>(vehicle.second) || j <= get<3>(vehicle.second) ){
+                        currentTotal++;
+                    }
+                }
+                //std::cout << "Current Total: " <<currentTotal <<endl ;
+                if(currentTotal <= lowest){
+                   lowest=currentTotal;
+                }
+            }
             //std::cout << "Volume: " << volume <<endl ;
-           // std::cout << "Vehicle Count Through: " << vehicleCountThrough <<endl ;
-           // std::cout << "-----------------------" <<endl ;
+            //std::cout << "Vehicle Count Through: " << vehicleCountThrough <<endl ;
+            //std::cout << "Not Same Vehicle: " << lowest <<endl ;
+            //std::cout << "-----------------------" <<endl ;
 
 
             // Logging predictions
-            predictLog.open("results/predictions_random_25_05_linear_3000_2.csv",  ios::out | ios::app);
-            predictLog << myId << ", " << appStart << "," << appEnd << ","<< vehicleCountThrough << "\n";
-            predictLog.close();
+            //predictLog.open("results/dis2/predictions_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
+            //predictLog << myId << ", " << appStart << "," << appEnd << ","<< lowest/6 << "\n";
+            //predictLog.close();
 
 
             // Logging volume in rsu database
@@ -272,7 +286,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         if( simulationTime % 51 == 0 &&  simulationTime != 1000 && simulationTime > 200){
 
-            int nVc = 5;
+            int nVc = 3;
             int dwellTime;
 
             for(dwellTime = 0; dwellTime < 1000 - simulationTime; dwellTime++ ){
@@ -294,9 +308,9 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             //std::cout << "--------------------------" << endl ;
 
             // Logging predictions
-            predictLog.open("results/dwellTime_random_25_05_linear_3000_2.csv",  ios::out | ios::app);
-            predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
-            predictLog.close();
+            //predictLog.open("results/dis2/dwellTime_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
+            //predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
+            //predictLog.close();
 
             // Logging to RSU database
 

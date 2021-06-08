@@ -40,10 +40,10 @@ TraCICommandInterface* traci;
 TraCIScenarioManager* scenario;
 
 Registry registry;
-int NodeRange = 800;
+int NodeRange = 400;
 int inRangeMsgSent = 0;
 int wsmSent = 0;
-int hop = 3;
+int hop = 4;
 
 double linearDistance(Coord& a,  Coord& b) {
     Coord dist(a - b);
@@ -675,9 +675,9 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   //wsmSent++;
 
                   // Logging locations
-                  vehicleLog.open("results/vehicleLog_random_25_05_linear_3000_2.csv",  ios::out | ios::app);
-                  vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
-                  vehicleLog.close();
+                  //vehicleLog.open("results/dis2/vehicleLog_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
+                  //vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
+                  //vehicleLog.close();
 
                   //break;
 
