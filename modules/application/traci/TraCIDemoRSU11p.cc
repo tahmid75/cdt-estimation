@@ -45,6 +45,33 @@ std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
 int numberVehicles = 3000;
+int appID = 0;
+
+int rsuList[6] = {14,19,24,29,34,39};
+
+//int bandwidth [6] [6] = {
+//        {999,rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0},
+//        {rand() % 20 + 0, 999, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0},
+//        {rand() % 20 + 0,rand() % 20 + 0, 999 ,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0},
+//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999,rand() % 20 + 0,rand() % 20 + 0},
+//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999 ,rand() % 20 + 0},
+//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999}
+//};
+
+std::map<int, std::map<int , int>> bandWidth {
+    {14, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{39,rand() % 20 + 0}} },
+    {19, {{14,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{39,rand() % 20 + 0}} },
+    {24, {{19,rand() % 20 + 0}, {14,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{39,rand() % 20 + 0}} },
+    {29, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{14,rand() % 20 + 0},{34,rand() % 20 + 0},{39,rand() % 20 + 0}} },
+    {34, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{14,rand() % 20 + 0},{39,rand() % 20 + 0}} },
+    {39, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{14,rand() % 20 + 0}} },
+};
+
+
+
+// processing, storage, bandwidth
+double influence [3] = {0.5, 0.33, 0.25};
+
 
 
 double distance(Coord& a,  Coord& b) {
@@ -84,9 +111,9 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
         int messageTime = wsm->getMessageTime();
         //std::cout << "Vehicle in Range: " << messageTime << ". at: " << myId << ". Vehicle ID: " << vehicleID << endl;
         inRangeMsgRcv++;
-        //wsmReceived++;
-       // std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
-        //std::cout << "---------------------------------"<< endl;
+//        wsmReceived++;
+//        std::cout << "Total Message Received: " << inRangeMsgRcv  << endl ;
+//        std::cout << "---------------------------------"<< endl;
         edge.inRangeVehicle[myId][messageTime].insert(edge.inRangeVehicle[myId][messageTime].begin(), vehicleID);
 
     }
@@ -122,19 +149,23 @@ void TraCIDemoRSU11p::onWSM(BaseFrame1609_4* frame)
             int dwellStart = messageTime + timeToReach;
             int dwellEnd = dwellStart + dwellTime;
             int availableResource = wsm->getAvailableResource();
+            int availableStorage = wsm->getAvailableStorage();
 
-            //Coord dist(vehicleCoord - rsuCoord);
-            //if(dist.length() > rsuRange){
-               // std::cout<< dist.length() << endl;
-               // std::cout<< "RSU Received this message" << endl;
-               // std::cout<< "Dwell Time: " << dwellTime << endl;
-               // std::cout<< "Time to Reach: " << timeToReach<< endl;
-               // std::cout<< "Dwell Start: " << dwellStart << endl;
-               // std::cout<< "Dwell End: " << dwellEnd << endl;
-                //std::cout << "---------------" << endl;
-           // }
+//            std::cout << availableStorage << endl;
+//            std::cout << "---------------"<< endl;
+//
+//            Coord dist(vehicleCoord - rsuCoord);
+//            if(dist.length() > rsuRange){
+//                std::cout<< dist.length() << endl;
+//                std::cout<< "RSU Received this message" << endl;
+//                std::cout<< "Dwell Time: " << dwellTime << endl;
+//                std::cout<< "Time to Reach: " << timeToReach<< endl;
+//                std::cout<< "Dwell Start: " << dwellStart << endl;
+//                std::cout<< "Dwell End: " << dwellEnd << endl;
+//                std::cout << "---------------" << endl;
+//            }
 
-            std::tuple<int, double, int, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd, availableResource );
+            std::tuple<int, double, int, int, int, int> vehicleData (messageTime, dwellDistance, dwellStart, dwellEnd, availableResource, availableStorage );
             edge.msgRegistry[myId][vehicleID] = vehicleData;
 
         } // message doesnt exists in database
@@ -186,6 +217,109 @@ void TraCIDemoRSU11p::onWSA(DemoServiceAdvertisment* wsa)
 
 
 
+
+int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
+
+    //std::vector<int> probFog;
+    std::cout << "Choose Fog Continuous Called." << endl ;
+    std::vector<std::tuple<int, int, int, int, double>> probFog;
+    int score;
+    int highestScore=0;
+    int chosenFog;
+
+    for(int i=0; i<6; i++){
+        int resourcePoolCont = 0 ;
+        int storagePoolCont = 0;
+        if(rsuList[i]!=originRSU ){
+            for (auto const& vehicle : edge.msgRegistry[rsuList[i]]){
+                if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
+                    resourcePoolCont = resourcePoolCont + get<4>(vehicle.second);
+                    storagePoolCont = storagePoolCont + get<5>(vehicle.second);
+                }
+            }
+
+            if(resourcePoolCont >= resourceReq && storagePoolCont >= storageReq){
+                score = (resourcePoolCont * influence[0]) + ( storagePoolCont * influence[1] ) + ( bandWidth[originRSU][rsuList[i]]  * influence[2]);
+                if(score >= highestScore) {
+                    highestScore= score;
+                    chosenFog = rsuList[i];
+                }
+                std::tuple<int, int, int, int, double> probDetails (rsuList[i], resourcePoolCont, storagePoolCont, bandWidth[originRSU][rsuList[i]], score);
+                probFog.push_back(probDetails);
+            }
+
+        } // if not origin
+    }
+
+    std::cout << "Probable Fogs: " << endl ;
+    for(auto itr : probFog){
+        std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                << endl;
+    }
+    std:: cout << "Chosen Fog: " << chosenFog <<endl;
+    return chosenFog;
+
+}
+
+int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
+
+    std::vector<std::tuple<int, int, int, int, double>> probFog;
+    std::cout << "Choose Fog Disrupted Called." << endl ;
+
+    int score;
+    int highestScore=0;
+    int chosenFog;
+
+    for(int i=0; i<6; i++){
+
+        int lowest = 9999;
+        int lowestResourceDist = 9999;
+        int lowestStorageDist = 9999;
+
+        if(rsuList[i]!=originRSU ){
+
+            for (int j = appStart ; j <= appEnd ; j++){
+                int currentTotal = 0;
+                int resourcePoolDist=0;
+                int storagePoolDist = 0;
+                for (auto const& vehicle : edge.msgRegistry[rsuList[i]]){
+                    if(j >= get<2>(vehicle.second) || j <= get<3>(vehicle.second) ){
+                        currentTotal++;
+                        resourcePoolDist = resourcePoolDist + get<4>(vehicle.second);
+                        storagePoolDist = storagePoolDist + get<5>(vehicle.second);
+                    }
+                }
+
+                if(currentTotal <= lowest){
+                   lowest = currentTotal;
+                   lowestResourceDist = resourcePoolDist;
+                   lowestStorageDist = storagePoolDist;
+                }
+            }
+
+            if(lowestResourceDist >= resourceReq && lowestStorageDist >= storageReq){
+                score = (lowestResourceDist * influence[0]) + ( lowestStorageDist * influence[1] ) + ( bandWidth[originRSU][rsuList[i]]  * influence[2]);
+                if(score >= highestScore){
+                    highestScore = score;
+                    chosenFog = rsuList[i];
+                }
+                std::tuple<int, int, int, int, double> probDetails (rsuList[i], lowestResourceDist, lowestStorageDist, bandWidth[originRSU][rsuList[i]], score );
+                probFog.push_back(probDetails);
+            }
+        } // if not origin
+
+    }
+
+    std::cout << "Probable Fogs: " << endl ;
+    for(auto itr : probFog){
+        std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                << endl;
+    }
+    std:: cout << "Chosen Fog: " << chosenFog <<endl;
+    return chosenFog;
+
+}
+
 void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 {
 
@@ -208,8 +342,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     }
 
-
-
     if(msg== request_event){ // Event is an application request
 
         int simulationTime = (int) simTime().dbl();
@@ -217,63 +349,104 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         if( simulationTime > 149 &&  simulationTime % 50 == 0 && simulationTime != 1000){
 
 
-            //std::cout << "Application request at: " << simulationTime <<endl ;
-
-            int resourcePool;
-           // Application --> resource, deadline
-            std::map<int, std::tuple<int,int>> applications;
-            int appCount = rand() % 10 + 0;
-
-            for(int i=0; i< appCount ; i++ ){
-               std::tuple<int, int> appData (rand() % 10 + 10, rand() % 10 + 10 );
-               applications[i] = appData;
-            }
-
+            int resourcePoolCont=0;
+            int storagePoolCont = 0;
+            int status = 0; // 0 - Initiated. 1 - Served, 2 - Queued
+            int servedRSU=99;
             double appStart = simulationTime + 25;
             int executionTime = 5;
             int appEnd = appStart + executionTime;
+            int chosenFog;
+
+            int resourceReq = rand() % 10 + 10;
+            int storageReq = rand() % 10 + 10;
+
+            int appType = rand() % 2; // 0 - Continuous connectivity, 1 - Disrupted connectivity
+
+//            Application --> resource, deadline
+//            Don't remove this section. 0
+//            std::map<int, std::tuple<int,int>> applications;
+//            int appCount = rand() % 10 + 0;
+//
+//            for(int i=0; i< appCount ; i++ ){
+//               std::tuple<int, int> appData (rand() % 10 + 10, rand() % 10 + 10 );
+//               applications[i] = appData;
+//            }
+//             If we want to implement multiple application requests and choosing algorithm.
+
 
             int vehicleCountThrough = 0;
-            int volume = 0;
+            //int volume = 0;
 
             for (auto const& vehicle : edge.msgRegistry[myId]){
-
                 if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
                     vehicleCountThrough++;
-                    resourcePool = resourcePool + get<4>(vehicle.second);
+                    resourcePoolCont = resourcePoolCont + get<4>(vehicle.second);
+                    storagePoolCont = storagePoolCont + get<5>(vehicle.second);
                 }
-
             }
 
             int lowest = 9999;
             int disrupted = 0;
+            int lowestResourceDist = 9999;
+            int lowestStorageDist = 9999;
 
             for (int j = appStart ; j <= appEnd ; j++){
                 int currentTotal = 0;
+                int resourcePoolDist=0;
+                int storagePoolDist=0;
                 for (auto const& vehicle : edge.msgRegistry[myId]){
                     if(j >= get<2>(vehicle.second) || j <= get<3>(vehicle.second) ){
                         currentTotal++;
+                        resourcePoolDist = resourcePoolDist + get<4>(vehicle.second);
+                        storagePoolDist = storagePoolDist + get<5>(vehicle.second);
                     }
                 }
-                //std::cout << "Current Total: " <<currentTotal <<endl ;
+
                 if(currentTotal <= lowest){
                    lowest=currentTotal;
+                   lowestResourceDist = resourcePoolDist;
+                   lowestStorageDist = storagePoolDist;
                 }
             }
-            //std::cout << "Volume: " << volume <<endl ;
-            //std::cout << "Vehicle Count Through: " << vehicleCountThrough <<endl ;
-            //std::cout << "Not Same Vehicle: " << lowest <<endl ;
-            //std::cout << "-----------------------" <<endl ;
+
+            std::cout << "Origin RSU: " << myId <<endl;
+            std::cout << "Application request at: " << simulationTime <<endl;
+            std::cout << "App type: " << appType <<endl;
+            std::cout << "Computation: " << resourceReq << " Storage: " << storageReq <<endl;
+            //std::cout << "Continuous Conn: " << vehicleCountThrough <<endl;
+            std::cout << "Continuous Conn Computation: " << resourcePoolCont << " Storage: "<< storagePoolCont <<endl;
+            //std::cout << "Disrupted Conn: " << lowest <<endl ;
+            std::cout << "Disrupted Conn Resource: " << lowestResourceDist << " Storage: " << lowestStorageDist << endl ;
+
+            if((appType== 0 && resourceReq <= resourcePoolCont && storageReq<= storagePoolCont) || (appType== 1 && resourceReq <= lowestResourceDist && storageReq <= lowestStorageDist)){ // Continuous/Disrupted and Served
+                // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status -> 1
+                status = 1;
+                std::tuple<int, int, int, int, int, int, int, int, int> appData (appID, appType, simulationTime, myId, myId,  resourceReq, storageReq, 0, status );
+                edge.appRegistry.push_back(appData);
+                appID++;
+            }
+
+            else if(appType==0){
+                chosenFog = chooseFogCont(appID,  simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+            }
+
+            else if(appType==1){
+                chosenFog = chooseFogDist(appID, simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+            }
+
+            std::cout << "Application Status: " << status <<endl;
+            std::cout << "-----------------------" <<endl ;
 
 
-            // Logging predictions
-            //predictLog.open("results/dis2/predictions_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
-            //predictLog << myId << ", " << appStart << "," << appEnd << ","<< lowest/6 << "\n";
-            //predictLog.close();
-
-
-            // Logging volume in rsu database
-            //edge.predictedVolume[myId][simulationTime] = volume;
+//             Logging predictions
+//            predictLog.open("results/dis2/predictions_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
+//            predictLog << myId << ", " << appStart << "," << appEnd << ","<< lowest/6 << "\n";
+//            predictLog.close();
+//
+//
+//             Logging volume in rsu database
+//            edge.predictedVolume[myId][simulationTime] = volume;
 
         }
 
@@ -304,19 +477,19 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                     break;
             }
 
-            //std::cout << "Dwell time estimation at: " << simulationTime << "s. At RSU: " << myId << ". Dwell Time: " << dwellTime<<  endl ;
-            //std::cout << "--------------------------" << endl ;
-
-            // Logging predictions
-            //predictLog.open("results/dis2/dwellTime_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
-            //predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
-            //predictLog.close();
-
-            // Logging to RSU database
-
-            //edge.dtPrediction[myId][simulationTime] = dwellTime;
-
-           // int vehicleCount = traci->get
+//            std::cout << "Dwell time estimation at: " << simulationTime << "s. At RSU: " << myId << ". Dwell Time: " << dwellTime<<  endl ;
+//            std::cout << "--------------------------" << endl ;
+//
+//             Logging predictions
+//            predictLog.open("results/dis2/dwellTime_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
+//            predictLog << myId << ", " << simulationTime << "," << dwellTime*3 << "\n";
+//            predictLog.close();
+//
+//             Logging to RSU database
+//
+//            edge.dtPrediction[myId][simulationTime] = dwellTime;
+//
+//            int vehicleCount = traci->get
 
 
         }
@@ -389,6 +562,17 @@ void TraCIDemoRSU11p::finish()
         //std::cout << "In Range Received: " << inRangeMsgRcv << endl;
         std::cout << "WSM Received: " << wsmReceived << endl;
     }
+
+    for(auto itr : edge.appRegistry){
+        cout << std::get<0>(itr) << ", " << std::get<1>(itr)<< ", "
+                << std::get<2>(itr)<< ", " << std::get<3>(itr) << ", "
+                << std::get<4>(itr)<< ", " << std::get<5>(itr)<< ", "
+                << std::get<6>(itr)<<  ", " <<std::get<7>(itr) <<  ", " <<std::get<8>(itr) <<  endl ;
+
+        cout << "------------------------" << endl;
+
+    }
+
 
 }
 

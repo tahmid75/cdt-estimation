@@ -14,8 +14,8 @@ class Registry
     std::map<int, veins::Coord> rsuRegistry;
 
 
-    // RSU --> vehicleId, dwelldistance, dwelltime, dwellstart, dwellend, availableresource.
-    std::map<int, std::map<int, std::tuple<int, double, int, int, int>>> msgRegistry;
+    // RSU --> vehicleId, dwelldistance, dwelltime, dwellstart, dwellend, availableresource, availableStorage
+    std::map<int, std::map<int, std::tuple<int, double, int, int, int, int>>> msgRegistry;
 
     //       RSU          msgTime        vehicleId(i,...i+n)
     std::map<int, std::map<int, std::vector<int>>> inRangeVehicle;
@@ -23,5 +23,8 @@ class Registry
 
         //   RSU          time  volume
     std::map<int, std::map<int, int>> predictedVolume;
+
+    // ID, type, time, rsu, servedRSU, requirement, storage deadline, status
+    std::vector<std::tuple<int, int, int, int, int, int, int, int, int>> appRegistry;
 
 };

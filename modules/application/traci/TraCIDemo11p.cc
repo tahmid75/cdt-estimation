@@ -338,6 +338,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
                         int availableResource = rand() % 10 + 0;
+                        int availableStorage = rand() % 10 + 0;
+
+                        //std::cout << availableStorage << endl;
 
                         // Sending a WSM Message to the nextRSU
                         TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
@@ -352,7 +355,10 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                         wsm->setDwellDistance(dwellDistance);
                         wsm->setDwellTime(dwellTime);
                         wsm->setHopCountRLDCO(99);
+
                         wsm->setAvailableResource(availableResource);
+                        wsm->setAvailableStorage(availableStorage);
+
                         sendDelayedDown(wsm, uniform(0.01,1.0));
                         wsmSent++;
 
@@ -478,6 +484,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
 
                                 int availableResource = rand() % 10 + 0;
+                                int availableStorage = rand() % 10 + 0;
 
 
                                 // Sending a WSM Message to the nextRSU
@@ -501,6 +508,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 wsm->setHopCountRLDCO(0);
                                 wsm->setAvailableResource(availableResource);
                                 sendDelayedDown(wsm, uniform(0.01,0.09));
+                                wsm->setAvailableStorage(availableStorage);
                                 wsmSent++;
                                 //std::cout<< "WSM Sent" << endl;
                                 //std::cout<< "-------------------------" << endl;
