@@ -45,7 +45,7 @@ std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
 int numberVehicles = 3000;
-int appID = 0;
+int appID = 1;
 
 int rsuList[6] = {14,19,24,29,34,39};
 
@@ -251,13 +251,20 @@ int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq,
         } // if not origin
     }
 
-    std::cout << "Probable Fogs: " << endl ;
-    for(auto itr : probFog){
-        std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                << endl;
+    if(probFog.size()!=0){
+        std::cout << "Probable Fogs: " << endl ;
+        for(auto itr : probFog){
+            std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                    << endl;
+        }
+        std:: cout << "Chosen Fog: " << chosenFog <<endl;
+        return chosenFog;
     }
-    std:: cout << "Chosen Fog: " << chosenFog <<endl;
-    return chosenFog;
+
+    else{
+        std::cout<< "No Fogs to choose from" << endl;
+        return 0;
+    }
 
 }
 
@@ -310,13 +317,20 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 
     }
 
-    std::cout << "Probable Fogs: " << endl ;
-    for(auto itr : probFog){
-        std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                << endl;
+    if(probFog.size()!=0){
+        std::cout << "Probable Fogs: " << endl ;
+        for(auto itr : probFog){
+            std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                    << endl;
+        }
+        std:: cout << "Chosen Fog: " << chosenFog <<endl;
+        return chosenFog;
     }
-    std:: cout << "Chosen Fog: " << chosenFog <<endl;
-    return chosenFog;
+
+    else{
+        std::cout<< "No Fogs to choose from" << endl;
+        return 0;
+    }
 
 }
 
@@ -351,7 +365,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
             int resourcePoolCont=0;
             int storagePoolCont = 0;
-            int status = 0; // 0 - Initiated. 1 - Served, 2 - Queued
+            int status = 0; // 0 - Initiated. 1 - Assigned, 2 - Denied 3 - Assigned but failed.
             int servedRSU=99;
             double appStart = simulationTime + 25;
             int executionTime = 5;
@@ -410,6 +424,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 }
             }
 
+            std::cout << "App Id: " << appID <<endl;
             std::cout << "Origin RSU: " << myId <<endl;
             std::cout << "Application request at: " << simulationTime <<endl;
             std::cout << "App type: " << appType <<endl;
@@ -420,20 +435,44 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             std::cout << "Disrupted Conn Resource: " << lowestResourceDist << " Storage: " << lowestStorageDist << endl ;
 
             if((appType== 0 && resourceReq <= resourcePoolCont && storageReq<= storagePoolCont) || (appType== 1 && resourceReq <= lowestResourceDist && storageReq <= lowestStorageDist)){ // Continuous/Disrupted and Served
-                // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status -> 1
-                status = 1;
-                std::tuple<int, int, int, int, int, int, int, int, int> appData (appID, appType, simulationTime, myId, myId,  resourceReq, storageReq, 0, status );
-                edge.appRegistry.push_back(appData);
-                appID++;
+               chosenFog = myId;
+               status = 1; // Assigned
             }
 
             else if(appType==0){
                 chosenFog = chooseFogCont(appID,  simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+                if(chosenFog==0){
+                    status = 2;
+                }
+                else{
+                    status = 1;
+                }
             }
 
             else if(appType==1){
                 chosenFog = chooseFogDist(appID, simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+                if(chosenFog==0){
+                    status = 2;
+                }
+                else{
+                    status = 1;
+                }
             }
+
+            // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status
+            std::tuple<int, int, int, int, int, int, int, int, int, int, int> appData (appID, appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
+            edge.appRegistry.push_back(appData);
+
+
+            //Logging Applications
+            predictLog.open("results/phase2/apps/applications_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
+                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
+                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
+                    << ", " <<  0 << ", " <<  status << "\n" ;
+            predictLog.close();
+
+            appID++;
 
             std::cout << "Application Status: " << status <<endl;
             std::cout << "-----------------------" <<endl ;
@@ -563,7 +602,7 @@ void TraCIDemoRSU11p::finish()
         std::cout << "WSM Received: " << wsmReceived << endl;
     }
 
-    for(auto itr : edge.appRegistry){
+    /*for(auto itr : edge.appRegistry){
         cout << std::get<0>(itr) << ", " << std::get<1>(itr)<< ", "
                 << std::get<2>(itr)<< ", " << std::get<3>(itr) << ", "
                 << std::get<4>(itr)<< ", " << std::get<5>(itr)<< ", "
@@ -571,7 +610,7 @@ void TraCIDemoRSU11p::finish()
 
         cout << "------------------------" << endl;
 
-    }
+    }*/
 
 
 }

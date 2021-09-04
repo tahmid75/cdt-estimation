@@ -45,6 +45,7 @@ int inRangeMsgSent = 0;
 int wsmSent = 0;
 int hop = 4;
 
+
 double linearDistance(Coord& a,  Coord& b) {
     Coord dist(a - b);
     return dist.length();
@@ -237,6 +238,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
         double vehicleSpeed = mobility->getSpeed();
         double simulationTime = simTime().dbl();
+        int availableResource=0;
+        int availableStorage=0;
 
 
         // Creating tuple of information
@@ -337,8 +340,19 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
-                        int availableResource = rand() % 10 + 0;
-                        int availableStorage = rand() % 10 + 0;
+                        if ( registry.vehicleResource.count(vehicleID) == 0 ) { // Not Present
+                            availableResource = rand() % 10 + 0;
+                            availableStorage = rand() % 10 + 0;
+                            std::tuple<int, int> resourceData (availableResource, availableStorage);
+                            registry.vehicleResource[vehicleID] =  resourceData;
+                            // Logging Resource
+                            vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+                            vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
+                            vehicleLog.close();
+                        } else {
+                            availableResource = get<0>(registry.vehicleResource[vehicleID]);
+                            availableStorage = get<1>(registry.vehicleResource[vehicleID]);
+                        }
 
                         //std::cout << availableStorage << endl;
 
@@ -482,9 +496,19 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 std::cout << "-----------------" << endl;
                                 */
 
-
-                                int availableResource = rand() % 10 + 0;
-                                int availableStorage = rand() % 10 + 0;
+                                if ( registry.vehicleResource.count(vehicleID) == 0 ) { // Not Present
+                                    availableResource = rand() % 10 + 0;
+                                    availableStorage = rand() % 10 + 0;
+                                    std::tuple<int, int> resourceData (availableResource, availableStorage);
+                                    registry.vehicleResource[vehicleID] =  resourceData;
+                                    // Logging Resource
+                                    vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+                                    vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
+                                    vehicleLog.close();
+                                } else {
+                                    availableResource = get<0>(registry.vehicleResource[vehicleID]);
+                                    availableStorage = get<1>(registry.vehicleResource[vehicleID]);
+                                }
 
 
                                 // Sending a WSM Message to the nextRSU
@@ -737,6 +761,7 @@ void TraCIDemo11p::finish()
 
 
     }
+
 
 
 
