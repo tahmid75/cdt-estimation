@@ -70,7 +70,7 @@ std::map<int, std::map<int , int>> bandWidth {
 
 
 // processing, storage, bandwidth
-double influence [3] = {0.5, 0.33, 0.25};
+double influence [3] = {0.5, 0.30, 0.20};
 
 
 
@@ -367,7 +367,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             int storagePoolCont = 0;
             int status = 0; // 0 - Initiated. 1 - Assigned, 2 - Denied 3 - Assigned but failed.
             int servedRSU=99;
-            double appStart = simulationTime + 25;
+            double appStart = simulationTime + 0; // Previously was 25
             int executionTime = 5;
             int appEnd = appStart + executionTime;
             int chosenFog;
