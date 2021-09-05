@@ -67,6 +67,24 @@ std::map<int, std::map<int , int>> bandWidth {
     {39, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{14,rand() % 20 + 0}} },
 };
 
+double rMatrix [6] [6] = {
+        {100, 100, 100, 100, 100, 100},
+        {100, 100, 100, 100, 100, 100},
+        {100, 100, 100, 100, 100, 100},
+        {100, 100, 100, 100, 100, 100},
+        {100, 100, 100, 100, 100, 100},
+        {100, 100, 100, 100, 100, 100},
+};
+
+double qMatrix [6] [6] = {
+        {0,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {0,0,0,0,0,0},
+        {0,0,0,0,0,0},
+};
+
 
 
 // processing, storage, bandwidth
@@ -197,6 +215,9 @@ void TraCIDemoRSU11p::initialize(int stage) {
 
         traffic_flow_event = new cMessage("traffic_flow_event");
         scheduleAt(simTime()+5, traffic_flow_event);
+
+        rl_event = new cMessage("rl_event");
+        scheduleAt(simTime()+2, rl_event);
 
         stage++;
 
@@ -337,6 +358,7 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 {
 
+    int simulationTime = (int) simTime().dbl();
 
     if(msg == broadcast_event){
 
@@ -358,7 +380,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
     if(msg== request_event){ // Event is an application request
 
-        int simulationTime = (int) simTime().dbl();
 
         if( simulationTime > 149 &&  simulationTime % 50 == 0 && simulationTime != 1000){
 
@@ -490,11 +511,11 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
         }
 
         scheduleAt(simTime() + 1 , request_event);
+
     }
 
     if(msg == dwellTime_event){
 
-        int simulationTime = (int) simTime().dbl();
 
         if( simulationTime % 51 == 0 &&  simulationTime != 1000 && simulationTime > 200){
 
@@ -530,10 +551,27 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 //
 //            int vehicleCount = traci->get
 
-
         }
 
         scheduleAt(simTime() + 1 , dwellTime_event);
+    }
+
+
+    if(msg == rl_event){ // Updateing R and Q Martix
+
+        if( (simulationTime > 149 && myId == 14) &&  (simulationTime == 156 || simulationTime == 206 || simulationTime == 256 || simulationTime == 306
+                || simulationTime == 356 || simulationTime == 406 || simulationTime == 456 || simulationTime == 506 || simulationTime == 556 || simulationTime == 606
+                || simulationTime == 656 || simulationTime == 706 || simulationTime == 756 || simulationTime == 806 || simulationTime == 856  || simulationTime == 906
+                || simulationTime == 956)){
+
+            // All the RL Stuff
+            std::cout<< "#############################" << endl;
+            std::cout<< "This is an RL Event at 14" << endl;
+            std::cout<< "#############################" << endl;
+
+        }
+
+        scheduleAt(simTime() + 2 , rl_event);
     }
 
 
@@ -582,8 +620,6 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
         scheduleAt(simTime() + 10, traffic_flow_event);
         */
-
-
     }
 
 }
