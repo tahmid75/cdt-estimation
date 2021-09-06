@@ -352,7 +352,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                             std::tuple<int, int> resourceData (availableResource, availableStorage);
                             vehicleResource[vehicleID] =  resourceData;
                             // Logging Resource
-                            vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+                            vehicleLog.open("results/phase2/vehicleResource.csv",  ios::out | ios::app);
                             vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
                             vehicleLog.close();
                         } else {
@@ -508,7 +508,7 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     std::tuple<int, int> resourceData (availableResource, availableStorage);
                                     vehicleResource[vehicleID] =  resourceData;
                                     // Logging Resource
-                                    vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+                                    vehicleLog.open("results/phase2/vehicleResource.csv",  ios::out | ios::app);
                                     vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
                                     vehicleLog.close();
                                 } else {
@@ -715,9 +715,9 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   //wsmSent++;
 
                   // Logging locations
-                  //vehicleLog.open("results/dis2/vehicleLog_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
-                  //vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
-                  //vehicleLog.close();
+                   vehicleLog.open("results/phase2/vehicleLog.csv",  ios::out | ios::app);
+                   vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
+                   vehicleLog.close();
                    std::tuple<int, int, int> locationData (vehicleID, simulationTime, rsu.first);
                    vehicleLocation.push_back(locationData);
 

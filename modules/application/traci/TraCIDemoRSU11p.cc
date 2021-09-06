@@ -50,14 +50,6 @@ int appID = 0;
 
 int rsuList[6] = {14,19,24,29,34,39};
 
-//int bandwidth [6] [6] = {
-//        {999,rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0},
-//        {rand() % 20 + 0, 999, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0, rand() % 20 + 0},
-//        {rand() % 20 + 0,rand() % 20 + 0, 999 ,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0},
-//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999,rand() % 20 + 0,rand() % 20 + 0},
-//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999 ,rand() % 20 + 0},
-//        {rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0,rand() % 20 + 0, 999}
-//};
 
 std::map<int, std::map<int , int>> bandWidth {
     {14, {{19,rand() % 20 + 0},{24,rand() % 20 + 0},{29,rand() % 20 + 0},{34,rand() % 20 + 0},{39,rand() % 20 + 0}} },
@@ -86,6 +78,8 @@ double qMatrix [6] [6] = {
         {0,0,0,0,0,0},
 };
 
+
+double gamma = 0.8;
 
 
 // processing, storage, bandwidth
@@ -227,7 +221,6 @@ void TraCIDemoRSU11p::initialize(int stage) {
 }
 
 //New Changes
-
 void TraCIDemoRSU11p::onWSA(DemoServiceAdvertisment* wsa)
 {
     // if this RSU receives a WSA for service 42, it will tune to the chan
@@ -237,13 +230,114 @@ void TraCIDemoRSU11p::onWSA(DemoServiceAdvertisment* wsa)
 }
 
 
+int findIndex(int rsuID){
+    int index;
+    for(int i=0; i<6; i++){
+        if(rsuList[i]== rsuID){
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
 
+std::vector<int> available_actions(int state){
+
+    std::vector<int> av_act;
+
+    for (int i = 0; i < 6; i++){
+       if(rMatrix[state][i] >= 0){
+            av_act.push_back(i);
+        }
+    }
+
+    return av_act;
+}
+
+
+void updateQMatrix(int current_state, int action){
+    double max_value = 0;
+    std::vector<int> available_acts = available_actions(action);
+
+    for(int j=0; j< available_acts.size(); j++){
+        if(qMatrix[action][available_acts.at(j)] >= max_value)
+        max_value = qMatrix[action][available_acts.at(j)];
+    }
+
+    qMatrix[current_state][action] = (rMatrix[current_state][action]) + (gamma* max_value);
+}
+
+
+int chooseFogContRL(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
+
+    //std::vector<int> probFog;
+    //std::cout << "Choose Fog Continuous Called." << endl ;
+    std::vector<std::tuple<int, int, int, int, double>> probFog;
+    int score;
+    int highestScore=0;
+    int chosenFog;
+
+    for(int i=0; i<6; i++){
+        int resourcePoolCont = 0 ;
+        int storagePoolCont = 0;
+        if(rsuList[i]!=originRSU ){
+            for (auto const& vehicle : edge.msgRegistry[rsuList[i]]){
+                if(appStart >= get<2>(vehicle.second) && appEnd <= get<3>(vehicle.second) ){
+                    resourcePoolCont = resourcePoolCont + get<4>(vehicle.second);
+                    storagePoolCont = storagePoolCont + get<5>(vehicle.second);
+                }
+            }
+
+            if(resourcePoolCont >= resourceReq && storagePoolCont >= storageReq){
+                score = (resourcePoolCont * influence[0]) + ( storagePoolCont * influence[1] ) + ( bandWidth[originRSU][rsuList[i]]  * influence[2]);
+                if(score >= highestScore) {
+                    highestScore= score;
+                    //chosenFog = rsuList[i];
+                }
+                std::tuple<int, int, int, int, double> probDetails (rsuList[i], resourcePoolCont, storagePoolCont, bandWidth[originRSU][rsuList[i]], score);
+                probFog.push_back(probDetails);
+            }
+
+        } // if not origin
+    }
+
+    if(probFog.size()!=0){ // ALL the RL Magic Here
+        std::cout << "RL Enabled Probable Fogs: " << endl ;
+        double max_value = 0;
+        int state = findIndex(originRSU);
+        int max_index;
+        int action;
+        for(auto itr : probFog){
+            std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                    << endl;
+            action = findIndex(get<0>(itr));
+
+            if(qMatrix[state][action] >= max_value){
+                max_value = qMatrix[state][action];
+                max_index = action;
+            }
+
+        }
+
+        std::cout << "-------------------------" << endl;
+
+
+       // std:: cout << "Chosen Fog: " << chosenFog <<endl;
+        return rsuList[action];
+    }
+
+    else{
+        //std::cout<< "No Fogs to choose from" << endl;
+        return 0;
+    }
+
+}
 
 
 int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
 
     //std::vector<int> probFog;
-    std::cout << "Choose Fog Continuous Called." << endl ;
+    //std::cout << "Choose Fog Continuous Called." << endl ;
     std::vector<std::tuple<int, int, int, int, double>> probFog;
     int score;
     int highestScore=0;
@@ -274,17 +368,17 @@ int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq,
     }
 
     if(probFog.size()!=0){
-        std::cout << "Probable Fogs: " << endl ;
+        //std::cout << "Probable Fogs: " << endl ;
         for(auto itr : probFog){
-            std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                    << endl;
+            //std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                    //<< endl;
         }
-        std:: cout << "Chosen Fog: " << chosenFog <<endl;
+       // std:: cout << "Chosen Fog: " << chosenFog <<endl;
         return chosenFog;
     }
 
     else{
-        std::cout<< "No Fogs to choose from" << endl;
+        //std::cout<< "No Fogs to choose from" << endl;
         return 0;
     }
 
@@ -293,7 +387,7 @@ int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq,
 int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
 
     std::vector<std::tuple<int, int, int, int, double>> probFog;
-    std::cout << "Choose Fog Disrupted Called." << endl ;
+    //std::cout << "Choose Fog Disrupted Called." << endl ;
 
     int score;
     int highestScore=0;
@@ -340,17 +434,17 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
     }
 
     if(probFog.size()!=0){
-        std::cout << "Probable Fogs: " << endl ;
+        //std::cout << "Probable Fogs: " << endl ;
         for(auto itr : probFog){
-            std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                    << endl;
+           // std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+                    //<< endl;
         }
-        std:: cout << "Chosen Fog: " << chosenFog <<endl;
+        //std:: cout << "Chosen Fog: " << chosenFog <<endl;
         return chosenFog;
     }
 
     else{
-        std::cout<< "No Fogs to choose from" << endl;
+        //std::cout<< "No Fogs to choose from" << endl;
         return 0;
     }
 
@@ -359,7 +453,7 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 int appStatus(int id){
 
     if(get<0>(edge.appRegistry[id]) == 0){
-        std::cout<< "App needs continuous resource" << endl;
+        //std::cout<< "App needs continuous resource" << endl;
         int resourcePoolCont=0;
         int storagePoolCont=0;
         std::vector<int> vehiclesAvailable;
@@ -381,30 +475,31 @@ int appStatus(int id){
         sort( vehiclesAvailable.begin(),  vehiclesAvailable.end() );
         vehiclesAvailable.erase( unique(  vehiclesAvailable.begin(),  vehiclesAvailable.end() ),  vehiclesAvailable.end() );
 
-        std::cout << "Actual Vehicles Available: " << vehiclesAvailable.size() << endl;
+        //std::cout << "Actual Vehicles Available: " << vehiclesAvailable.size() << endl;
 
         for (auto const& vehicle : vehiclesAvailable){
             resourcePoolCont += get<0>(vehicleResource[vehicle]);
             storagePoolCont += get<1>(vehicleResource[vehicle]);
         }
 
-        std::cout<< "Resource: " << resourcePoolCont << ", Storage: "<< storagePoolCont << endl;
+        //std::cout<< "Resource: " << resourcePoolCont << ", Storage: "<< storagePoolCont << endl;
 
         if(resourcePoolCont >= get<6>(edge.appRegistry[id]) && storagePoolCont >= get<7>(edge.appRegistry[id])){
-            std::cout<< "Assigned and Served." << endl;
+            //std::cout<< "Assigned and Served." << endl;
             return 7;
         }
         else{
-            std::cout<< "Assigned and Failed." << endl;
+            //std::cout<< "Assigned and Failed." << endl;
             return 5;
         }
 
     }
     else{
-        std::cout<< "App needs Disrupted resource" << endl;
+        //std::cout<< "App needs Disrupted resource" << endl;
         return 7;
     }
 }
+
 
 
 void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
@@ -448,9 +543,10 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             int resourceReq = rand() % 10 + 10;
             int storageReq = rand() % 10 + 10;
 
-            int appType = rand() % 2; // 0 - Continuous connectivity, 1 - Disrupted connectivity
+            //int appType = rand() % 2; // 0 - Continuous connectivity, 1 - Disrupted connectivity
+            int appType = 0 ;
 
-//            Application --> resource, deadline
+            //Application --> resource, deadline
 //            Don't remove this section. 0
 //            std::map<int, std::tuple<int,int>> applications;
 //            int appCount = rand() % 10 + 0;
@@ -497,15 +593,21 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 }
             }
 
-            std::cout << "App Id: " << appID <<endl;
-            std::cout << "Origin RSU: " << myId <<endl;
-            std::cout << "Application request at: " << simulationTime <<endl;
-            std::cout << "App type: " << appType <<endl;
-            std::cout << "Computation: " << resourceReq << " Storage: " << storageReq <<endl;
-            //std::cout << "Continuous Conn: " << vehicleCountThrough <<endl;
-            std::cout << "Continuous Conn Computation: " << resourcePoolCont << " Storage: "<< storagePoolCont <<endl;
-            //std::cout << "Disrupted Conn: " << lowest <<endl ;
-            std::cout << "Disrupted Conn Resource: " << lowestResourceDist << " Storage: " << lowestStorageDist << endl ;
+//            std::cout << "App Id: " << appID <<endl;
+//            std::cout << "App Request on RSU: " << myId <<endl;
+//            std::cout << "Application request at: " << simulationTime <<endl;
+//            std::cout << "App type: " << appType <<endl;
+//            std::cout << "Computation: " << resourceReq << " Storage: " << storageReq <<endl;
+//            std::cout << "Continuous Conn: " << vehicleCountThrough <<endl;
+//            std::cout << "Continuous Conn Computation: " << resourcePoolCont << " Storage: "<< storagePoolCont <<endl;
+//            std::cout << "Disrupted Conn: " << lowest <<endl ;
+//            std::cout << "Disrupted Conn Resource: " << lowestResourceDist << " Storage: " << lowestStorageDist << endl ;
+
+
+
+            /*************************
+             * Simple AHP Based Decision
+             ***************************/
 
             if((appType== 0 && resourceReq <= resourcePoolCont && storageReq<= storagePoolCont) || (appType== 1 && resourceReq <= lowestResourceDist && storageReq <= lowestStorageDist)){ // Continuous/Disrupted and Served
                chosenFog = myId;
@@ -534,25 +636,75 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
             // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status
             std::tuple<int, int, int, int, int, int, int, int, int, int> appData (appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
-
-            //edge.appRegistry.push_back(appData);
             edge.appRegistry[appID] = appData;
 
+            //Logging Applications for AHP
+            predictLog.open("results/phase2/ahp/applications.csv",  ios::out | ios::app);
+            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
+                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
+                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
+                    << ", " <<  0 << ", " <<  status << "\n" ;
+            predictLog.close();
+            /*************************
+            * Simple AHP Based Decision Ends
+            ***************************/
 
-            //Logging Applications
-            predictLog.open("results/phase2/apps/applications_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
+
+
+
+            /***********
+             *  RL Implemented Decision
+             ****************/
+
+            if((appType== 0 && resourceReq <= resourcePoolCont && storageReq<= storagePoolCont) || (appType== 1 && resourceReq <= lowestResourceDist && storageReq <= lowestStorageDist)){ // Continuous/Disrupted and Served
+               chosenFog = myId;
+               status = 1; // Assigned
+            }
+
+            else if(appType==0){
+                chosenFog = chooseFogContRL(appID,  simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+                if(chosenFog==0){
+                    status = 2;
+                }
+                else{
+                    status = 1;
+                }
+            }
+
+            else if(appType==1){
+                chosenFog = chooseFogDist(appID, simulationTime, myId, resourceReq, storageReq, appStart, appEnd);
+                if(chosenFog==0){
+                    status = 2;
+                }
+                else{
+                    status = 1;
+                }
+            }
+
+            // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status
+            std::tuple<int, int, int, int, int, int, int, int, int, int> appDataRL (appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
+            edge.appRegistryRL[appID] = appDataRL;
+
+            //Logging Applications for AHP
+            predictLog.open("results/phase2/rl/applications.csv",  ios::out | ios::app);
             predictLog << appID << ", " << appType << ", " << simulationTime <<", "
                     <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
                     <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
                     << ", " <<  0 << ", " <<  status << "\n" ;
             predictLog.close();
 
+             /***********
+             *  RL Implemented Decision Ends
+             ****************/
+
+
+
             appID++;
 
-            std::cout << "Application Status: " << status <<endl;
-            std::cout << "-----------------------" <<endl ;
-
-
+//            std::cout << "Application Status: " << status <<endl;
+//            std::cout << "-----------------------" <<endl ;
+//
+//
 //             Logging predictions
 //            predictLog.open("results/dis2/predictions_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
 //            predictLog << myId << ", " << appStart << "," << appEnd << ","<< lowest/6 << "\n";
@@ -611,7 +763,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
     }
 
 
-    if(msg == rl_event){ // Updating R and Q Martix
+    if(msg == rl_event){ // All the RL magic here. Updating R martix and Q matrix.
 
         if( (simulationTime > 149 && myId == 14) &&  (simulationTime == 156 || simulationTime == 206 || simulationTime == 256 || simulationTime == 306
                 || simulationTime == 356 || simulationTime == 406 || simulationTime == 456 || simulationTime == 506 || simulationTime == 556 || simulationTime == 606
@@ -620,30 +772,42 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
             // All the RL Stuff
             std::cout<< "#############################" << endl;
-            std::cout<< "This is an RL Event at 14" << endl;
+            std::cout<< "This is an RL Training Event" << endl;
 
             int RLoriginFog;
             int RLchosenFog;
             int serveStatus;
 
 
-            for(int i=appID; i > appID-6; i--){
-
+            for(int i=appID; i >= appID-6; i--){
 
                 // Check if app was assigned
-                if(std::get<9>(edge.appRegistry[i])== 1){
+                if(std::get<9>(edge.appRegistryRL[i])== 1){
 
-                    RLoriginFog = std::get<4>(edge.appRegistry[i]);
-                    RLchosenFog = std::get<5>(edge.appRegistry[i]);
-                    std::cout<< "Type: " << std::get<0>(edge.appRegistry[i]) << ", Status: 1, " << "Origin: " << RLoriginFog << ", Chosen Fog: " << RLchosenFog
-                            << ", Resource Req: " << std::get<6>(edge.appRegistry[i]) << ", Storage Req: " << std::get<7>(edge.appRegistry[i])
+                    RLoriginFog = std::get<4>(edge.appRegistryRL[i]);
+                    RLchosenFog = std::get<5>(edge.appRegistryRL[i]);
+                    std::cout<< "Type: " << std::get<0>(edge.appRegistryRL[i]) << ", Status: 1, " << "Origin: " << RLoriginFog << ", Chosen Fog: " << RLchosenFog
+                            << ", Resource Req: " << std::get<6>(edge.appRegistryRL[i]) << ", Storage Req: " << std::get<7>(edge.appRegistryRL[i])
                             << endl;
 
                     serveStatus = appStatus(i);
                     //appStatus(i);
 
+                    if(serveStatus == 5){
+                        int originIndex = findIndex(RLoriginFog);
+                        int chosenIndex = findIndex(RLchosenFog);
+                        std::cout<< "Assigned and Failed. Decreasing reward for: " << RLoriginFog << ", " <<RLchosenFog << ", ["<< originIndex << chosenIndex << "]"  <<  endl;
+                        rMatrix[originIndex][chosenIndex] = rMatrix[originIndex][chosenIndex] - 20 ;
+                        updateQMatrix(originIndex, chosenIndex);
+                    }
 
-                    std::cout << "-----------------------------" << endl;
+                    else if(serveStatus == 7){
+                        int originIndex = findIndex(RLoriginFog);
+                        int chosenIndex = findIndex(RLchosenFog);
+                        std::cout<< "Assigned and Served. Increasing reward for: " << RLoriginFog << ", " <<RLchosenFog << ", ["<< originIndex << chosenIndex << "]"  <<  endl;
+                        rMatrix[originIndex][chosenIndex] = rMatrix[originIndex][chosenIndex] + 20 ;
+                        updateQMatrix(originIndex, chosenIndex);
+                    }
                 }
 
             }
@@ -720,6 +884,21 @@ void TraCIDemoRSU11p::finish()
     if(simTime().dbl() == 1000 && myId == 24){
         //std::cout << "In Range Received: " << inRangeMsgRcv << endl;
         std::cout << "WSM Received: " << wsmReceived << endl;
+
+        for(int i = 0; i< 6; i++){
+            for(int j= 0; j< 6; j++){
+                std::cout<< rMatrix[i][j] << ", ";
+            }
+            std::cout<< endl;
+        }
+
+        for(int i = 0; i< 6; i++){
+            for(int j= 0; j< 6; j++){
+                std::cout<< qMatrix[i][j] << ", ";
+            }
+            std::cout<< endl;
+        }
+
     }
 
     /*for(auto itr : edge.appRegistry){

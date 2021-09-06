@@ -26,6 +26,7 @@ class Registry
 
     // ID -> type, time, rsu, servedRSU, requirement, storage deadline, status
     std::map<int, std::tuple< int, int, int, int, int, int, int, int, int, int>> appRegistry;
+    std::map<int, std::tuple< int, int, int, int, int, int, int, int, int, int>> appRegistryRL;
 
 
 
