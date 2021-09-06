@@ -356,15 +356,25 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 
 }
 
-void appStatus(int id){
+int appStatus(int id){
+
     if(get<0>(edge.appRegistry[id]) == 0){
         std::cout<< "App needs continuous resource" << endl;
         int resourcePoolCont=0;
         int storagePoolCont=0;
         std::vector<int> vehiclesAvailable;
+
         for (auto const& vehicle : vehicleLocation){
-            if(get<2>(vehicle) == get<5>(edge.appRegistry[id])  && get<1>(vehicle) >= get<2>(edge.appRegistry[id])  && get<1>(vehicle) <= get<3>(edge.appRegistry[2])  ){
-                vehiclesAvailable.push_back(get<0>(vehicle));
+
+            if(get<2>(vehicle) == get<5>(edge.appRegistry[id])){
+
+                //std::cout << get<2>(vehicle) << " " << get<5>(edge.appRegistry[id]) <<" " << get<1>(vehicle) << " "
+                                                            //<<get<2>(edge.appRegistry[id]) << " " << get<3>(edge.appRegistry[id])
+                                                            //<< endl;
+                if(get<1>(vehicle) >= get<2>(edge.appRegistry[id])  && get<1>(vehicle) <= get<3>(edge.appRegistry[id])){
+                    vehiclesAvailable.push_back(get<0>(vehicle));
+                }
+
             }
         }
 
@@ -375,14 +385,24 @@ void appStatus(int id){
 
         for (auto const& vehicle : vehiclesAvailable){
             resourcePoolCont += get<0>(vehicleResource[vehicle]);
-            storagePoolCont += get<0>(vehicleResource[vehicle]);
+            storagePoolCont += get<1>(vehicleResource[vehicle]);
         }
 
         std::cout<< "Resource: " << resourcePoolCont << ", Storage: "<< storagePoolCont << endl;
 
+        if(resourcePoolCont >= get<6>(edge.appRegistry[id]) && storagePoolCont >= get<7>(edge.appRegistry[id])){
+            std::cout<< "Assigned and Served." << endl;
+            return 7;
+        }
+        else{
+            std::cout<< "Assigned and Failed." << endl;
+            return 5;
+        }
+
     }
     else{
         std::cout<< "App needs Disrupted resource" << endl;
+        return 7;
     }
 }
 
@@ -418,7 +438,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 
             int resourcePoolCont=0;
             int storagePoolCont = 0;
-            int status = 0; // 0 - Initiated. 1 - Assigned, 2 - Denied 3 - Assigned but failed.
+            int status = 0; // 0 - Initiated. 1 - Assigned, 2 - Denied  5 -> Failed. 7 -> Success
             int servedRSU=99;
             double appStart = simulationTime + 0; // Previously was 25
             int executionTime = 5;
@@ -591,7 +611,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
     }
 
 
-    if(msg == rl_event){ // Updateing R and Q Martix
+    if(msg == rl_event){ // Updating R and Q Martix
 
         if( (simulationTime > 149 && myId == 14) &&  (simulationTime == 156 || simulationTime == 206 || simulationTime == 256 || simulationTime == 306
                 || simulationTime == 356 || simulationTime == 406 || simulationTime == 456 || simulationTime == 506 || simulationTime == 556 || simulationTime == 606
@@ -619,8 +639,8 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                             << ", Resource Req: " << std::get<6>(edge.appRegistry[i]) << ", Storage Req: " << std::get<7>(edge.appRegistry[i])
                             << endl;
 
-                    //serveStatus = appStatus(i);
-                    appStatus(i);
+                    serveStatus = appStatus(i);
+                    //appStatus(i);
 
 
                     std::cout << "-----------------------------" << endl;
@@ -629,7 +649,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             }
 
 
-            std::cout << vehicleLocation.size() << endl;
+            //std::cout << vehicleLocation.size() << endl;
 
             std::cout<< "#############################" << endl;
 
