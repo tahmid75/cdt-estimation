@@ -24,6 +24,7 @@
 #include "TraCIDemoRSU11p.h"
 
 #include <veins/modules/application/traci/Registry.h>
+#include <veins/modules/application/traci/CommonVars.h>
 #include "veins/base/utils/Coord.h"
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/modules/mobility/traci/TraCICommandInterface.h"
@@ -45,7 +46,7 @@ std::map<int, double> alpha;
 int inRangeMsgRcv = 0;
 int wsmReceived = 0;
 int numberVehicles = 3000;
-int appID = 1;
+int appID = 0;
 
 int rsuList[6] = {14,19,24,29,34,39};
 
@@ -355,6 +356,37 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 
 }
 
+void appStatus(int id){
+    if(get<0>(edge.appRegistry[id]) == 0){
+        std::cout<< "App needs continuous resource" << endl;
+        int resourcePoolCont=0;
+        int storagePoolCont=0;
+        std::vector<int> vehiclesAvailable;
+        for (auto const& vehicle : vehicleLocation){
+            if(get<2>(vehicle) == get<5>(edge.appRegistry[id])  && get<1>(vehicle) >= get<2>(edge.appRegistry[id])  && get<1>(vehicle) <= get<3>(edge.appRegistry[2])  ){
+                vehiclesAvailable.push_back(get<0>(vehicle));
+            }
+        }
+
+        sort( vehiclesAvailable.begin(),  vehiclesAvailable.end() );
+        vehiclesAvailable.erase( unique(  vehiclesAvailable.begin(),  vehiclesAvailable.end() ),  vehiclesAvailable.end() );
+
+        std::cout << "Actual Vehicles Available: " << vehiclesAvailable.size() << endl;
+
+        for (auto const& vehicle : vehiclesAvailable){
+            resourcePoolCont += get<0>(vehicleResource[vehicle]);
+            storagePoolCont += get<0>(vehicleResource[vehicle]);
+        }
+
+        std::cout<< "Resource: " << resourcePoolCont << ", Storage: "<< storagePoolCont << endl;
+
+    }
+    else{
+        std::cout<< "App needs Disrupted resource" << endl;
+    }
+}
+
+
 void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
 {
 
@@ -481,8 +513,10 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             }
 
             // Inserting into application registry. // ID, type, time, rsu, servedRSU, resource, storage, deadline, status
-            std::tuple<int, int, int, int, int, int, int, int, int, int, int> appData (appID, appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
-            edge.appRegistry.push_back(appData);
+            std::tuple<int, int, int, int, int, int, int, int, int, int> appData (appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
+
+            //edge.appRegistry.push_back(appData);
+            edge.appRegistry[appID] = appData;
 
 
             //Logging Applications
@@ -567,6 +601,36 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             // All the RL Stuff
             std::cout<< "#############################" << endl;
             std::cout<< "This is an RL Event at 14" << endl;
+
+            int RLoriginFog;
+            int RLchosenFog;
+            int serveStatus;
+
+
+            for(int i=appID; i > appID-6; i--){
+
+
+                // Check if app was assigned
+                if(std::get<9>(edge.appRegistry[i])== 1){
+
+                    RLoriginFog = std::get<4>(edge.appRegistry[i]);
+                    RLchosenFog = std::get<5>(edge.appRegistry[i]);
+                    std::cout<< "Type: " << std::get<0>(edge.appRegistry[i]) << ", Status: 1, " << "Origin: " << RLoriginFog << ", Chosen Fog: " << RLchosenFog
+                            << ", Resource Req: " << std::get<6>(edge.appRegistry[i]) << ", Storage Req: " << std::get<7>(edge.appRegistry[i])
+                            << endl;
+
+                    //serveStatus = appStatus(i);
+                    appStatus(i);
+
+
+                    std::cout << "-----------------------------" << endl;
+                }
+
+            }
+
+
+            std::cout << vehicleLocation.size() << endl;
+
             std::cout<< "#############################" << endl;
 
         }

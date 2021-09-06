@@ -24,9 +24,11 @@ class Registry
         //   RSU          time  volume
     std::map<int, std::map<int, int>> predictedVolume;
 
-    // ID, type, time, rsu, servedRSU, requirement, storage deadline, status
-    std::vector<std::tuple<int, int, int, int, int, int, int, int, int, int, int>> appRegistry;
+    // ID -> type, time, rsu, servedRSU, requirement, storage deadline, status
+    std::map<int, std::tuple< int, int, int, int, int, int, int, int, int, int>> appRegistry;
 
-    std::map<int, std::tuple<int, int>> vehicleResource;
+
+
+
 
 };

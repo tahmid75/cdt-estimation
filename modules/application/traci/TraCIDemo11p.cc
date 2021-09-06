@@ -21,6 +21,7 @@
 //
 
 #include <veins/modules/application/traci/Registry.h>
+#include <veins/modules/application/traci/CommonVars.h>
 #include "veins/modules/application/traci/TraCIDemo11p.h"
 #include "veins/modules/application/traci/TraCIDemo11pMessage_m.h"
 #include "veins/modules/application/traci/mlr.h"
@@ -44,6 +45,9 @@ int NodeRange = 400;
 int inRangeMsgSent = 0;
 int wsmSent = 0;
 int hop = 4;
+
+std::vector<std::tuple<int, int, int>> vehicleLocation;
+std::map<int, std::tuple<int, int>> vehicleResource;
 
 
 double linearDistance(Coord& a,  Coord& b) {
@@ -251,6 +255,8 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
         // Removing last data
         int size = registry.vehicleRegistry[vehicleID].size();
 
+        //std::cout<<vehicleID << endl;
+
 
         if(size > 3){ // If we have at least 5 historic data points to work with
 
@@ -340,18 +346,18 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
 
                         int dwellTime = mlr.predict({dwellDistance, averageSpeed});
 
-                        if ( registry.vehicleResource.count(vehicleID) == 0 ) { // Not Present
+                        if ( vehicleResource.count(vehicleID) == 0 ) { // Not Present
                             availableResource = rand() % 10 + 0;
                             availableStorage = rand() % 10 + 0;
                             std::tuple<int, int> resourceData (availableResource, availableStorage);
-                            registry.vehicleResource[vehicleID] =  resourceData;
+                            vehicleResource[vehicleID] =  resourceData;
                             // Logging Resource
                             vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
                             vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
                             vehicleLog.close();
                         } else {
-                            availableResource = get<0>(registry.vehicleResource[vehicleID]);
-                            availableStorage = get<1>(registry.vehicleResource[vehicleID]);
+                            availableResource = get<0>(vehicleResource[vehicleID]);
+                            availableStorage = get<1>(vehicleResource[vehicleID]);
                         }
 
                         //std::cout << availableStorage << endl;
@@ -496,18 +502,18 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                 std::cout << "-----------------" << endl;
                                 */
 
-                                if ( registry.vehicleResource.count(vehicleID) == 0 ) { // Not Present
+                                if ( vehicleResource.count(vehicleID) == 0 ) { // Not Present
                                     availableResource = rand() % 10 + 0;
                                     availableStorage = rand() % 10 + 0;
                                     std::tuple<int, int> resourceData (availableResource, availableStorage);
-                                    registry.vehicleResource[vehicleID] =  resourceData;
+                                    vehicleResource[vehicleID] =  resourceData;
                                     // Logging Resource
                                     vehicleLog.open("results/phase2/resource/vehicleResource_random_25_05_linear_1000_400m_hop4.csv",  ios::out | ios::app);
                                     vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
                                     vehicleLog.close();
                                 } else {
-                                    availableResource = get<0>(registry.vehicleResource[vehicleID]);
-                                    availableStorage = get<1>(registry.vehicleResource[vehicleID]);
+                                    availableResource = get<0>(vehicleResource[vehicleID]);
+                                    availableStorage = get<1>(vehicleResource[vehicleID]);
                                 }
 
 
@@ -692,6 +698,8 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                 Coord currentDist(rsu.second - vehicleCoord);
 
                if(currentDist.length() < NodeRange){
+
+                   //std::cout<<vehicleID << endl;
                   // Sending a WSM Message to the current rsu
                   /*TraCIDemo11pMessage* wsm = new TraCIDemo11pMessage();
                   populateWSM(wsm);
@@ -710,6 +718,8 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   //vehicleLog.open("results/dis2/vehicleLog_random_25_05_linear_1000_400m_hop4_disrupted.csv",  ios::out | ios::app);
                   //vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
                   //vehicleLog.close();
+                   std::tuple<int, int, int> locationData (vehicleID, simulationTime, rsu.first);
+                   vehicleLocation.push_back(locationData);
 
                   //break;
 
