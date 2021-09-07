@@ -214,6 +214,9 @@ void TraCIDemoRSU11p::initialize(int stage) {
         rl_event = new cMessage("rl_event");
         scheduleAt(simTime()+2, rl_event);
 
+        app_status = new cMessage("app_status");
+        scheduleAt(simTime()+2, app_status);
+
         stage++;
 
     }
@@ -270,8 +273,6 @@ void updateQMatrix(int current_state, int action){
 
 int chooseFogContRL(int appID, int simulationTime, int originRSU, int resourceReq, int storageReq, int appStart, int appEnd){
 
-    //std::vector<int> probFog;
-    //std::cout << "Choose Fog Continuous Called." << endl ;
     std::vector<std::tuple<int, int, int, int, double>> probFog;
     int score;
     int highestScore=0;
@@ -320,14 +321,11 @@ int chooseFogContRL(int appID, int simulationTime, int originRSU, int resourceRe
         }
 
         std::cout << "-------------------------" << endl;
-
-
-       // std:: cout << "Chosen Fog: " << chosenFog <<endl;
         return rsuList[action];
     }
 
     else{
-        //std::cout<< "No Fogs to choose from" << endl;
+
         return 0;
     }
 
@@ -368,17 +366,13 @@ int chooseFogCont(int appID, int simulationTime, int originRSU, int resourceReq,
     }
 
     if(probFog.size()!=0){
-        //std::cout << "Probable Fogs: " << endl ;
-        for(auto itr : probFog){
-            //std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                    //<< endl;
-        }
-       // std:: cout << "Chosen Fog: " << chosenFog <<endl;
+//        for(auto itr : probFog){
+//
+//        }
         return chosenFog;
     }
 
     else{
-        //std::cout<< "No Fogs to choose from" << endl;
         return 0;
     }
 
@@ -435,20 +429,60 @@ int chooseFogDist(int appID, int simulationTime, int originRSU, int resourceReq,
 
     if(probFog.size()!=0){
         //std::cout << "Probable Fogs: " << endl ;
-        for(auto itr : probFog){
-           // std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
-                    //<< endl;
-        }
-        //std:: cout << "Chosen Fog: " << chosenFog <<endl;
+//        for(auto itr : probFog){
+//           // std::cout << get<0>(itr) << ", Resource: " << get<1>(itr) << ", Storage: " << get<2>(itr) << ", Bandwidth: " << get<3>(itr) << ", Score: " << get<4>(itr)
+//                    //<< endl;
+//        }
         return chosenFog;
     }
 
     else{
-        //std::cout<< "No Fogs to choose from" << endl;
         return 0;
     }
 
 }
+
+
+int appStatusRL(int id){
+
+    if(get<0>(edge.appRegistryRL[id]) == 0){ // Continuous
+        int resourcePoolCont=0;
+        int storagePoolCont=0;
+        std::vector<int> vehiclesAvailable;
+
+        for (auto const& vehicle : vehicleLocation){
+
+            if(get<2>(vehicle) == get<5>(edge.appRegistryRL[id])){
+                if(get<1>(vehicle) >= get<2>(edge.appRegistryRL[id])  && get<1>(vehicle) <= get<3>(edge.appRegistryRL[id])){
+                    vehiclesAvailable.push_back(get<0>(vehicle));
+                }
+
+            }
+        }
+
+        sort( vehiclesAvailable.begin(),  vehiclesAvailable.end() );
+        vehiclesAvailable.erase( unique(  vehiclesAvailable.begin(),  vehiclesAvailable.end() ),  vehiclesAvailable.end() );
+
+
+        for (auto const& vehicle : vehiclesAvailable){
+            resourcePoolCont += get<0>(vehicleResource[vehicle]);
+            storagePoolCont += get<1>(vehicleResource[vehicle]);
+        }
+
+        if(resourcePoolCont >= get<6>(edge.appRegistryRL[id]) && storagePoolCont >= get<7>(edge.appRegistryRL[id])){
+            return 7;
+        }
+        else{
+            return 5;
+        }
+
+    }
+
+    else{ // Disruptive
+        return 7;
+    }
+}
+
 
 int appStatus(int id){
 
@@ -639,16 +673,15 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             edge.appRegistry[appID] = appData;
 
             //Logging Applications for AHP
-            predictLog.open("results/phase2/ahp/applications.csv",  ios::out | ios::app);
-            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
-                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
-                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
-                    << ", " <<  0 << ", " <<  status << "\n" ;
-            predictLog.close();
+//            predictLog.open("results/phase2/ahp/applications.csv",  ios::out | ios::app);
+//            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
+//                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
+//                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
+//                    << ", " <<  0 << ", " <<  status << "\n" ;
+//            predictLog.close();
             /*************************
             * Simple AHP Based Decision Ends
             ***************************/
-
 
 
 
@@ -685,13 +718,13 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             std::tuple<int, int, int, int, int, int, int, int, int, int> appDataRL (appType, simulationTime, appStart, appEnd,  myId, chosenFog,  resourceReq, storageReq, 0, status );
             edge.appRegistryRL[appID] = appDataRL;
 
-            //Logging Applications for AHP
-            predictLog.open("results/phase2/rl/applications.csv",  ios::out | ios::app);
-            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
-                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
-                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
-                    << ", " <<  0 << ", " <<  status << "\n" ;
-            predictLog.close();
+//            //Logging Applications for RL
+//            predictLog.open("results/phase2/rl/applications.csv",  ios::out | ios::app);
+//            predictLog << appID << ", " << appType << ", " << simulationTime <<", "
+//                    <<  appStart << ", " <<  appEnd << ", " <<  myId << ", "
+//                    <<  chosenFog << ", " <<  resourceReq << ", " <<  storageReq
+//                    << ", " <<  0 << ", " <<  status << "\n" ;
+//            predictLog.close();
 
              /***********
              *  RL Implemented Decision Ends
@@ -763,7 +796,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
     }
 
 
-    if(msg == rl_event){ // All the RL magic here. Updating R martix and Q matrix.
+    if(msg == rl_event){ // All the RL magic here. Updating R matrix and Q matrix.
 
         if( (simulationTime > 149 && myId == 14) &&  (simulationTime == 156 || simulationTime == 206 || simulationTime == 256 || simulationTime == 306
                 || simulationTime == 356 || simulationTime == 406 || simulationTime == 456 || simulationTime == 506 || simulationTime == 556 || simulationTime == 606
@@ -771,7 +804,7 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                 || simulationTime == 956)){
 
             // All the RL Stuff
-            std::cout<< "#############################" << endl;
+            std::cout<< "################################" << endl;
             std::cout<< "This is an RL Training Event" << endl;
 
             int RLoriginFog;
@@ -779,18 +812,17 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
             int serveStatus;
 
 
-            for(int i=appID; i >= appID-6; i--){
+            for(int i=appID-1; i >= appID-6; i--){
 
                 // Check if app was assigned
                 if(std::get<9>(edge.appRegistryRL[i])== 1){
-
                     RLoriginFog = std::get<4>(edge.appRegistryRL[i]);
                     RLchosenFog = std::get<5>(edge.appRegistryRL[i]);
                     std::cout<< "Type: " << std::get<0>(edge.appRegistryRL[i]) << ", Status: 1, " << "Origin: " << RLoriginFog << ", Chosen Fog: " << RLchosenFog
                             << ", Resource Req: " << std::get<6>(edge.appRegistryRL[i]) << ", Storage Req: " << std::get<7>(edge.appRegistryRL[i])
                             << endl;
 
-                    serveStatus = appStatus(i);
+                    serveStatus = appStatusRL(i);
                     //appStatus(i);
 
                     if(serveStatus == 5){
@@ -808,19 +840,106 @@ void TraCIDemoRSU11p::handleSelfMsg(cMessage* msg)
                         rMatrix[originIndex][chosenIndex] = rMatrix[originIndex][chosenIndex] + 20 ;
                         updateQMatrix(originIndex, chosenIndex);
                     }
-                }
+
+
+                    //Logging Applications for RL
+                    predictLog.open("results/phase2/applications_rl.csv",  ios::out | ios::app);
+                    predictLog << i << ", " << std::get<0>(edge.appRegistryRL[i]) << ", " << std::get<1>(edge.appRegistryRL[i]) <<", "
+                           <<  std::get<2>(edge.appRegistryRL[i]) << ", " <<  std::get<3>(edge.appRegistryRL[i]) << ", " <<  std::get<4>(edge.appRegistryRL[i]) << ", "
+                           <<  std::get<5>(edge.appRegistryRL[i]) << ", " <<  std::get<6>(edge.appRegistryRL[i]) << ", " <<  std::get<7>(edge.appRegistryRL[i])
+                           << ", " <<  0 << ", " <<  serveStatus << "\n" ;
+                    predictLog.close();
+
+                } // App was assigned
+
+                else{ // app was denied
+
+                    predictLog.open("results/phase2/applications_rl.csv",  ios::out | ios::app);
+                    predictLog << i << ", " << std::get<0>(edge.appRegistryRL[i]) << ", " << std::get<1>(edge.appRegistryRL[i]) <<", "
+                           <<  std::get<2>(edge.appRegistryRL[i]) << ", " <<  std::get<3>(edge.appRegistryRL[i]) << ", " <<  std::get<4>(edge.appRegistryRL[i]) << ", "
+                           <<  std::get<5>(edge.appRegistryRL[i]) << ", " <<  std::get<6>(edge.appRegistryRL[i]) << ", " <<  std::get<7>(edge.appRegistryRL[i])
+                           << ", " <<  0 << ", " <<  2 << "\n" ;
+                    predictLog.close();
+
+                } // App was denied
 
             }
 
 
             //std::cout << vehicleLocation.size() << endl;
 
-            std::cout<< "#############################" << endl;
+            std::cout<< "###############################" << endl;
 
         }
 
         scheduleAt(simTime() + 2 , rl_event);
     }
+
+
+
+    if(msg == app_status){ // Prediodical app status check and logging
+
+        if( (simulationTime > 149 && myId == 14) &&  (simulationTime == 158 || simulationTime == 208 || simulationTime == 258 || simulationTime == 308
+                || simulationTime == 358 || simulationTime == 408 || simulationTime == 458 || simulationTime == 508 || simulationTime == 558 || simulationTime == 608
+                || simulationTime == 658 || simulationTime == 708 || simulationTime == 758 || simulationTime == 808 || simulationTime == 858  || simulationTime == 908
+                || simulationTime == 958)){
+
+            // All the RL Stuff
+            std::cout<< "################################" << endl;
+            std::cout<< "This is an app logging event" << endl;
+
+            int originFog;
+            int chosenFog;
+            int serveStatus;
+
+
+            for(int i=appID-1; i >= appID-6; i--){
+
+                // Check if app was assigned
+                if(std::get<9>(edge.appRegistry[i])== 1){
+                    originFog = std::get<4>(edge.appRegistry[i]);
+                    chosenFog = std::get<5>(edge.appRegistry[i]);
+                    std::cout<< "Type: " << std::get<0>(edge.appRegistry[i]) << ", Status: 1, " << "Origin: " << originFog << ", Chosen Fog: " << chosenFog
+                            << ", Resource Req: " << std::get<6>(edge.appRegistry[i]) << ", Storage Req: " << std::get<7>(edge.appRegistry[i])
+                            << endl;
+
+                    serveStatus = appStatus(i);
+
+
+                    //Logging Applications for RL
+                    predictLog.open("results/phase2/applications_ahp.csv",  ios::out | ios::app);
+                    predictLog << i << ", " << std::get<0>(edge.appRegistry[i]) << ", " << std::get<1>(edge.appRegistry[i]) <<", "
+                           <<  std::get<2>(edge.appRegistry[i]) << ", " <<  std::get<3>(edge.appRegistry[i]) << ", " <<  std::get<4>(edge.appRegistry[i]) << ", "
+                           <<  std::get<5>(edge.appRegistry[i]) << ", " <<  std::get<6>(edge.appRegistry[i]) << ", " <<  std::get<7>(edge.appRegistry[i])
+                           << ", " <<  0 << ", " <<  serveStatus << "\n" ;
+                    predictLog.close();
+
+                } // App was assigned
+
+                else{ // app was denied
+
+                    predictLog.open("results/phase2/applications_ahp.csv",  ios::out | ios::app);
+                    predictLog << i << ", " << std::get<0>(edge.appRegistry[i]) << ", " << std::get<1>(edge.appRegistry[i]) <<", "
+                           <<  std::get<2>(edge.appRegistry[i]) << ", " <<  std::get<3>(edge.appRegistry[i]) << ", " <<  std::get<4>(edge.appRegistry[i]) << ", "
+                           <<  std::get<5>(edge.appRegistry[i]) << ", " <<  std::get<6>(edge.appRegistry[i]) << ", " <<  std::get<7>(edge.appRegistry[i])
+                           << ", " <<  0 << ", " <<  2 << "\n" ;
+                    predictLog.close();
+
+                } // App was denied
+
+            }
+
+
+            //std::cout << vehicleLocation.size() << endl;
+
+            std::cout<< "###############################" << endl;
+
+        }
+
+        scheduleAt(simTime() + 2 , app_status);
+    }
+
+
 
 
     if(msg == traffic_flow_event && myId == 24){ //Estimating traffic flow

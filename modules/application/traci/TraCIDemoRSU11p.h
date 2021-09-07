@@ -72,6 +72,7 @@ public:
     cMessage* dwellTime_event;
     cMessage* traffic_flow_event;
     cMessage* rl_event;
+    cMessage* app_status;
 
 
     fstream predictLog;
