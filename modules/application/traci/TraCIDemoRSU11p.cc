@@ -69,17 +69,27 @@ double rMatrix [6] [6] = {
         {100, 100, 100, 100, 100, 100},
 };
 
-double qMatrix [6] [6] = {
-        {0,0,0,0,0,0},
-        {0,0,0,0,0,0},
-        {0,0,0,0,0,0},
-        {0,0,0,0,0,0},
-        {0,0,0,0,0,0},
-        {0,0,0,0,0,0},
+//double qMatrix [6] [6] = {
+//        {0,0,0,0,0,0},
+//        {0,0,0,0,0,0},
+//        {0,0,0,0,0,0},
+//        {0,0,0,0,0,0},
+//        {0,0,0,0,0,0},
+//        {0,0,0,0,0,0},
+//};
+
+double qMatrix [6] [6]= {
+        {40, 120, -20, 100, 100, 100 },
+        {100, 260, 100, 100, 100, 100 },
+        {100, 120, 40, 100, 100, 100 },
+        {100, 140, 140, 100, 100, 100 },
+        {100, 140, 140, 100, 100, 100 },
+        {100, 160, 80, 100, 100, 100 },
 };
 
 
-double gamma = 0.8;
+double gamma = 0.95;
+double qAlpha = .8;
 
 
 // processing, storage, bandwidth
@@ -267,7 +277,7 @@ void updateQMatrix(int current_state, int action){
         max_value = qMatrix[action][available_acts.at(j)];
     }
 
-    qMatrix[current_state][action] = (rMatrix[current_state][action]) + (gamma* max_value);
+    qMatrix[current_state][action] = ((1-qAlpha)*qMatrix[current_state][action]) +  (qAlpha * (rMatrix[current_state][action] + (gamma* max_value)));
 }
 
 
@@ -1005,13 +1015,16 @@ void TraCIDemoRSU11p::finish()
         std::cout << "WSM Received: " << wsmReceived << endl;
 
         for(int i = 0; i< 6; i++){
+            std::cout<< "{";
             for(int j= 0; j< 6; j++){
                 std::cout<< rMatrix[i][j] << ", ";
             }
+            std::cout<< "},";
             std::cout<< endl;
         }
 
         for(int i = 0; i< 6; i++){
+
             for(int j= 0; j< 6; j++){
                 std::cout<< qMatrix[i][j] << ", ";
             }
