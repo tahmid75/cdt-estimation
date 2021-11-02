@@ -45,6 +45,7 @@ int NodeRange = 400;
 int inRangeMsgSent = 0;
 int wsmSent = 0;
 int hop = 4;
+int vCount = 1000;
 
 std::vector<std::tuple<int, int, int>> vehicleLocation;
 std::map<int, std::tuple<int, int>> vehicleResource;
@@ -352,9 +353,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                             std::tuple<int, int> resourceData (availableResource, availableStorage);
                             vehicleResource[vehicleID] =  resourceData;
                             // Logging Resource
-                            vehicleLog.open("results/phase2/vehicleResource.csv",  ios::out | ios::app);
-                            vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
-                            vehicleLog.close();
+                            //vehicleLog.open("results/phase2/vehicleResource_"+std::to_string(vCount)+".csv",  ios::out | ios::app);
+                           // vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
+                            //vehicleLog.close();
                         } else {
                             availableResource = get<0>(vehicleResource[vehicleID]);
                             availableStorage = get<1>(vehicleResource[vehicleID]);
@@ -508,9 +509,9 @@ void TraCIDemo11p::handlePositionUpdate(cObject* obj)
                                     std::tuple<int, int> resourceData (availableResource, availableStorage);
                                     vehicleResource[vehicleID] =  resourceData;
                                     // Logging Resource
-                                    vehicleLog.open("results/phase2/vehicleResource.csv",  ios::out | ios::app);
-                                    vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
-                                    vehicleLog.close();
+                                    //vehicleLog.open("results/phase2/vehicleResource_"+std::to_string(vCount)+".csv",  ios::out | ios::app);
+                                   // vehicleLog << vehicleID << ", " << availableResource << ", " << availableStorage <<  "\n";
+                                   // vehicleLog.close();
                                 } else {
                                     availableResource = get<0>(vehicleResource[vehicleID]);
                                     availableStorage = get<1>(vehicleResource[vehicleID]);
@@ -715,9 +716,9 @@ void TraCIDemo11p::handleSelfMsg(cMessage* msg)
                   //wsmSent++;
 
                   // Logging locations
-                   vehicleLog.open("results/phase2/vehicleLog.csv",  ios::out | ios::app);
-                   vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
-                   vehicleLog.close();
+                   //vehicleLog.open("results/phase2/vehicleLog_"+std::to_string(vCount)+".csv",  ios::out | ios::app);
+                 //  vehicleLog << vehicleID << ", " << simulationTime << ", " << rsu.first <<  "\n";
+                  // vehicleLog.close();
                    std::tuple<int, int, int> locationData (vehicleID, simulationTime, rsu.first);
                    vehicleLocation.push_back(locationData);
 
